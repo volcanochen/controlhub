@@ -1,0 +1,22 @@
+allprojects {
+    repositories {
+        def ALIYUN_REPOSITORY_URL = 'https://maven.aliyun.com/repository/public'
+        def ALIYUN_JCENTER_URL = 'https://maven.aliyun.com/repository/public'
+        def ALIYUN_GOOGLE_URL = 'https://maven.aliyun.com/repository/google'
+        def ALIYUN_CENTRAL_URL = 'https://maven.aliyun.com/repository/central'
+        
+        all { ArtifactRepository repo ->
+            if(repo instanceof MavenArtifactRepository){
+                def url = repo.url.toString()
+                if (url.startsWith('https://repo1.maven.org/maven2') || url.startsWith('https://jcenter.bintray.com/') || url.startsWith('https://maven.google.com/')) {
+                    project.logger.lifecycle "Repository ${repo.url} replaced by $ALIYUN_CENTRAL_URL."
+                    remove repo
+                }
+            }
+        }
+        maven { url ALIYUN_GOOGLE_URL }
+        maven { url ALIYUN_CENTRAL_URL }
+        maven { url ALIYUN_JCENTER_URL }
+        maven { url ALIYUN_REPOSITORY_URL }
+    }
+}
