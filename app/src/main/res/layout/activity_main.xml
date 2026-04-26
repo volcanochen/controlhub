@@ -9,6 +9,7 @@
     tools:context=".MainActivity">
 
     <LinearLayout
+        android:id="@+id/content_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:orientation="vertical"
@@ -44,7 +45,157 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="24sp"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="10dp"/>
+
+        <TextView
+            android:id="@+id/cpu_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="24sp"
+            android:textColor="@android:color/white"
+            android:layout_marginBottom="40dp"/>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center">
+
+            <Button
+                android:id="@+id/btn_lamp_on"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="开灯"
+                android:layout_marginEnd="20dp"
+                android:backgroundTint="#4CAF50"/>
+
+            <Button
+                android:id="@+id/btn_lamp_off"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="关灯"
+                android:backgroundTint="#F44336"/>
+
+        </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Windows 显示器控制"
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            android:layout_marginTop="30dp"
+            android:layout_marginBottom="15dp"/>
+
+        <!-- View log button -->
+        <Button
+            android:id="@+id/view_log_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="查看日志"
+            android:textSize="14sp"
+            android:layout_marginBottom="15dp"
+            android:visibility="gone"/>
+
+        <!-- Debug info (hidden by default) -->
+        <TextView
+            android:id="@+id/debug_info"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textSize="12sp"
+            android:textColor="@android:color/darker_gray"
+            android:fontFamily="monospace"
+            android:background="#20000000"
+            android:padding="10dp"
+            android:layout_marginBottom="15dp"
+            android:visibility="gone"/>
+
+        <!-- Windows 显示器控制 - 紧凑布局 -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="15dp">
+
+            <!-- 标题 -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="显示控制"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginEnd="15dp"/>
+
+            <!-- Server connection status (clickable button) -->
+            <Button
+                android:id="@+id/status_button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Not Ready"
+                android:textSize="14sp"
+                android:textAllCaps="false"
+                android:background="@drawable/status_button_bg"
+                android:paddingLeft="15dp"
+                android:paddingRight="15dp"
+                android:paddingTop="8dp"
+                android:paddingBottom="8dp"
+                android:layout_marginEnd="15dp"
+                android:visibility="visible"/>
+
+            <!-- 第一屏控制 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginEnd="15dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="第一屏"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/white"
+                    android:layout_marginEnd="5dp"/>
+
+                <CheckBox
+                    android:id="@+id/switch_monitor1"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:buttonTint="@android:color/white"/>
+
+            </LinearLayout>
+
+            <!-- 第二屏控制 -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="第二屏"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/white"
+                    android:layout_marginEnd="5dp"/>
+
+                <CheckBox
+                    android:id="@+id/switch_monitor2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="false"
+                    android:buttonTint="@android:color/white"/>
+
+            </LinearLayout>
+
+        </LinearLayout>
 
     </LinearLayout>
 
