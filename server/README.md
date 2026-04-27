@@ -6,18 +6,18 @@
 
 ### 核心服务器
 
-| 文件名 | 说明 | 用途 |
-|--------|------|------|
-| `usb_display_control.py` | 主服务器 | HTTP 服务器 + 显示器控制 |
-| `windows_display_server.py` | 显示服务 | Windows 显示器状态检测 |
-| `adb_display_server.py` | ADB 服务 | ADB 设备监听和管理 |
-| `adb_listener.py` | ADB 监听器 | ADB 事件监听 |
+| 文件名 | 说明 | 用途 | 状态 |
+|--------|------|------|------|
+| `usb_display_control.py` | 主服务器 | HTTP 服务器 + 显示器控制 | ✅ 主要使用 |
+| `windows_display_server.py` | 显示服务 | Windows 显示器状态检测（WiFi 备用） | ⚠️ 备用方案 |
+| `adb_display_server.py` | ADB 服务 | ADB 设备监听和管理（简化版） | ⚠️ 备用方案 |
+| `adb_listener.py` | ADB 监听器 | ADB 事件监听 | ⚠️ 备用方案 |
 
 ### 启动脚本
 
 | 文件名 | 说明 | 用途 |
 |--------|------|------|
-| `start_usb_display.bat` | 启动脚本 | 一键启动服务器 |
+| `start_usb_display.bat` | 启动脚本 | 一键启动 USB 服务器 |
 
 ## 快速开始
 
