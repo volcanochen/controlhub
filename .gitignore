@@ -48,6 +48,23 @@ Thumbs.db
 # Linux
 *~
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
 # Environment variables
 .env
 .env.local
