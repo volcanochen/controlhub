@@ -18,20 +18,9 @@ if %errorlevel% neq 0 (
 echo [OK] Python found
 echo.
 
-REM Check ADB
-adb version >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Error: ADB not found
-    echo.
-    echo Please install Android SDK Platform Tools:
-    echo https://developer.android.com/studio/releases/platform-tools
-    echo.
-    echo Or add ADB to PATH environment variable
-    pause
-    exit /b 1
-)
-
-echo [OK] ADB found
+REM Note: ADB will be auto-detected by the Python script
+REM If ADB is not in PATH, common installation paths will be checked
+echo Checking ADB (will be auto-detected)...
 echo.
 
 echo ============================================================

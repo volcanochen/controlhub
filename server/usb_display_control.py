@@ -15,6 +15,8 @@ import json
 # Configuration
 PORT = 8765
 
+
+
 def find_adb_path():
     """Find ADB executable path"""
     import os
@@ -93,6 +95,12 @@ def get_current_display_mode():
     """Get current display mode using PowerShell for accurate detection
     Returns:
         int: 0 = unknown, 1 = primary only, 2 = secondary only, 3 = extended, 4 = duplicate
+    
+    Logic:
+    - Parse all active screens from PowerShell
+    - Extract display ID from DeviceName (e.g., "\\\\.\\DISPLAY1" -> 1)
+    - The screen with smaller ID is "primary display" (第一屏)
+    - The screen with larger ID is "secondary display" (第二屏)
     """
     try:
         import subprocess
@@ -111,18 +119,30 @@ Write-Host "ACTIVE_COUNT:$count"
 
 # Get primary screen info
 $primary = $screens | Where-Object { $_.Primary }
-if ($primary) {
-    Write-Host "PRIMARY_EXISTS:True"
-} else {
-    Write-Host "PRIMARY_EXISTS:False"
+$primary_exists = ($primary -ne $null)
+Write-Host "PRIMARY_EXISTS:$primary_exists"
+
+# Get detailed info for each screen and extract display IDs
+$display_ids = @()
+for ($i = 0; $i -lt $count; $i++) {
+    $screen = $screens[$i]
+    Write-Host "SCREEN_$i`: Bounds=$($screen.Bounds.Width)x$($screen.Bounds.Height), Primary=$($screen.Primary), DeviceName=$($screen.DeviceName)"
+    
+    # Extract display ID from DeviceName (e.g., "\\.\DISPLAY1" -> 1)
+    if ($screen.DeviceName -match 'DISPLAY(\d+)') {
+        $id = [int]$matches[1]
+        $display_ids += $id
+        Write-Host "DISPLAY_ID:$id, Primary=$($screen.Primary)"
+    }
 }
 
-# Get working area of first screen
-if ($count -gt 0) {
-    $first = $screens[0]
-    Write-Host "FIRST_BOUNDS:$($first.Bounds.X),$($first.Bounds.Y)"
-    Write-Host "FIRST_WORKING:$($first.WorkingArea.Width)x$($first.WorkingArea.Height)"
+# Output primary device name if exists
+if ($primary_exists) {
+    Write-Host "PRIMARY_DEVICE:$($primary.DeviceName)"
 }
+
+# Output all display IDs for analysis
+Write-Host "ALL_IDS:$($display_ids -join ',')"
 """
         
         result = subprocess.run(
@@ -146,21 +166,44 @@ if ($count -gt 0) {
                 if count == 0:
                     return 0  # Unknown
                 elif count == 1:
-                    # Single display - check if it's the primary
-                    primary_match = re.search(r'PRIMARY_EXISTS:(True|False)', output)
-                    if primary_match and primary_match.group(1) == 'True':
-                        print("-> Primary only")
-                        return 1  # MODE_PRIMARY_ONLY
+                    # Single display - extract its ID
+                    # Find all display IDs
+                    id_matches = re.findall(r'DISPLAY_ID:(\d+)', output)
+                    if id_matches:
+                        display_id = int(id_matches[0])
+                        print(f"Single display ID: {display_id}")
+                        
+                        # Smaller ID (1) = primary display (第一屏)
+                        # Larger ID (2+) = secondary display (第二屏)
+                        if display_id == 1:
+                            print("-> Primary only (mode=1) - DISPLAY1")
+                            return 1  # MODE_PRIMARY_ONLY
+                        else:
+                            print(f"-> Secondary only (mode=2) - DISPLAY{display_id}")
+                            return 2  # MODE_SECONDARY_ONLY
                     else:
-                        print("-> Secondary only")
-                        return 2  # MODE_SECONDARY_ONLY
+                        # Fallback: try to parse from ALL_IDS
+                        all_ids_match = re.search(r'ALL_IDS:(.+)', output)
+                        if all_ids_match:
+                            ids = [int(x.strip()) for x in all_ids_match.group(1).split(',')]
+                            if ids and len(ids) == 1:
+                                if ids[0] == 1:
+                                    print("-> Primary only (mode=1) [fallback]")
+                                    return 1
+                                else:
+                                    print("-> Secondary only (mode=2) [fallback]")
+                                    return 2
+                        
+                        # Ultimate fallback
+                        print("-> Primary only (mode=1) [default]")
+                        return 1
                 else:
-                    # Multiple displays
-                    print("-> Extended mode")
+                    # Multiple displays - extended mode
+                    print("-> Extended mode (mode=3)")
                     return 3  # MODE_EXTENDED
         
         # Fallback
-        print("PowerShell detection failed")
+        print("PowerShell detection failed, default to extended")
         return 3
         
     except Exception as e:
