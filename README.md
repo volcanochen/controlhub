@@ -1,4 +1,4 @@
-# USB Display Control
+# 控制屏 - USB Display Control
 
 通过 Android 手机远程控制 Windows 电脑显示器模式的工具。
 
@@ -9,6 +9,9 @@
 - ✅ **USB 连接** - 通过 ADB reverse 建立稳定通信
 - ✅ **紧凑界面** - 一行式控制布局，简洁直观
 - ✅ **黑色主题** - OLED 友好，省电防烧屏
+- ✅ **设置功能** - 可启用/禁用各项功能
+- ✅ **日志查看** - 实时查看系统日志
+- ✅ **关于页面** - 应用信息和使用说明
 
 ## 系统架构
 
@@ -26,10 +29,17 @@
 
 ## 界面预览
 
-![应用界面](app_screenshot.png)
+### 主界面
+![主界面](app_screenshot.png)
+
+### 设置界面
+![设置界面](app_settings.png)
+
+### 关于页面
+![关于页面](app_about.png)
 
 **界面说明**：
-- **显示控制** - 功能区域标题
+- **⚙️ 设置按钮** - 右上角配置入口
 - **Ready/Not Ready** - 服务器连接状态（可点击手动检查）
 - **第一屏 ☑** - 笔记本内置显示器开关
 - **第二屏 ☑** - 外接显示器开关
@@ -100,11 +110,12 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 
 3. **启动 PC 服务器**
    ```bash
+   cd server
    python usb_display_control.py
    ```
 
 4. **打开 Android 应用**
-   - 启动 Clock 应用
+   - 启动 "控制屏" 应用
    - 查看状态按钮（应显示 "Ready"）
    - 勾选/取消显示器开关
 
@@ -119,7 +130,14 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 **手动检查服务器**：
 - 点击 "Ready" / "Not Ready" 按钮
 - 查看详细连接日志
-- 自动同步显示器状态
+- 自动同步显示器状态（每 10 秒）
+
+**设置功能**：
+1. 点击右上角 ⚙️ 按钮进入设置
+2. 可启用/禁用台灯控制
+3. 可启用/禁用显示器控制
+4. 点击"查看日志"查看系统日志
+5. 点击"应用介绍"查看应用信息
 
 ## 技术细节
 
@@ -244,7 +262,7 @@ c:\VOLCANO\myws\andr\
 
 ## 版本历史
 
-### v1.0 (2026-04-27)
+### v1.0.0 (2026-04-27)
 - ✅ 实时显示器状态检测
 - ✅ 4 种显示模式切换
 - ✅ 紧凑一行式布局
@@ -253,6 +271,16 @@ c:\VOLCANO\myws\andr\
 - ✅ 自动状态轮询（10 秒间隔）
 - ✅ 手动刷新功能
 - ✅ 防止双屏全关保护
+- ✅ 设置页面（功能开关）
+- ✅ 日志查看功能
+- ✅ 关于页面（应用信息）
+- ✅ 黑色主题优化
+
+**应用信息**：
+- 应用名称：控制屏
+- 开发者：Volcano Chen
+- 开源地址：https://github.com/volcanochen/screen
+- 🤖 AI 开发
 
 ## 开发说明
 
@@ -288,13 +316,13 @@ python usb_display_control.py
 
 本项目仅供学习和个人使用。
 
-## 联系方式
+## 开发者
 
-如有问题，请通过以下方式联系：
-- 提交 Issue
-- 发送邮件至开发者
+- **开发者**: Volcano Chen
+- **GitHub**: https://github.com/volcanochen/screen
+- **🤖 AI 开发**: 本应用由 AI 助手辅助开发
 
 ---
 
 **最后更新**: 2026-04-27  
-**维护者**: Development Team
+**维护者**: Volcano Chen
