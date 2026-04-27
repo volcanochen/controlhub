@@ -346,6 +346,7 @@ python test_display_control.py
 
 ---
 
-**文档版本**: 1.0  
+**文档版本**: 1.1  
+**创建日期**: 2026-04-27  
 **最后更新**: 2026-04-27  
-**维护者**: Development Team
+**维护者**: Volcano Chen

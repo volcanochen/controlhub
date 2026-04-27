@@ -82,7 +82,7 @@ USB 显示器控制服务端
 
 ### 4️⃣ 在 Android 应用中控制
 
-1. 打开 Clock 应用
+1. 打开 "控制屏" 应用
 2. 找到 "Windows 显示器控制" 部分
 3. 切换 Switch 按钮：
    - **仅第一屏**：开启 = 笔记本内置屏幕，关闭 = 不启用
@@ -220,3 +220,9 @@ private static final String SERVER_URL = "http://localhost:8765";
 ```
 
 然后重新编译 Android 应用。
+
+---
+
+**文档版本**: v1.1.0  
+**最后更新**: 2026-04-27  
+**维护者**: Volcano Chen

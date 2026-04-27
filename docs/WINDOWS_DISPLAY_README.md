@@ -54,7 +54,7 @@ private static final String SERVER_URL = "http://192.168.50.100:8080";
 ### 4. 测试功能
 
 在 Android 应用中：
-1. 打开应用
+1. 打开 "控制屏" 应用
 2. 找到 "Windows 显示器控制" 部分
 3. 切换 Switch 按钮
 4. 观察 Windows 显示器是否切换
@@ -123,3 +123,9 @@ def api_custom():
 ### 修改 Android 端
 
 编辑 `WindowsDisplayController.java`，添加新的 RPC 调用方法。
+
+---
+
+**文档版本**: v1.1.0  
+**最后更新**: 2026-04-27  
+**维护者**: Volcano Chen
