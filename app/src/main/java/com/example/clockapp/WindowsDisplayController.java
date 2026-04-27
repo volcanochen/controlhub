@@ -67,8 +67,8 @@ public class WindowsDisplayController {
         try {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(10000);  // 10 秒连接超时
+            conn.setReadTimeout(15000);     // 15 秒读取超时（给 PC 足够时间执行）
             conn.setDoOutput(true);
             
             // 构建 JSON 请求体
@@ -125,8 +125,8 @@ public class WindowsDisplayController {
         
         try {
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(5000);  // 5 秒超时
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(10000);  // 10 秒连接超时
+            conn.setReadTimeout(10000);     // 10 秒读取超时
             
             int responseCode = conn.getResponseCode();
             

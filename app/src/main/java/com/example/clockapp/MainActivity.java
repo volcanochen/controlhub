@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
@@ -34,6 +35,7 @@ public class MainActivity extends AppCompatActivity {
     private Button btnLampOff;
     private CheckBox switchMonitor1, switchMonitor2;
     private Button statusButton;
+    private Button settingsButton;
     private LinearLayout contentContainer;
     private Button viewLogButton;
     private TextView debugInfo;
@@ -46,9 +48,9 @@ public class MainActivity extends AppCompatActivity {
     // 标志位：防止 CheckBox 更新时触发监听器
     private boolean isUpdatingCheckBoxes = false;
 
-    private SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy 年 MM 月 dd 日", Locale.getDefault());
-    private SimpleDateFormat dayFormat = new SimpleDateFormat("EEEE", Locale.getDefault());
+    private SimpleDateFormat timeFormat;
+    private SimpleDateFormat dateFormat;
+    private SimpleDateFormat dayFormat;
 
     private long lastCpuTime = 0;
     private long lastAppTime = 0;
@@ -73,6 +75,14 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // 初始化日期时间格式（使用 strings.xml 中的统一定义）
+        String timeFormatStr = getString(R.string.time_format);
+        String dateFormatStr = getString(R.string.date_format);
+        String dayFormatStr = getString(R.string.day_format);
+        timeFormat = new SimpleDateFormat(timeFormatStr, Locale.getDefault());
+        dateFormat = new SimpleDateFormat(dateFormatStr, Locale.getDefault());
+        dayFormat = new SimpleDateFormat(dayFormatStr, Locale.getDefault());
+
         timeText = findViewById(R.id.time_text);
         dateText = findViewById(R.id.date_text);
         dayText = findViewById(R.id.day_text);
@@ -83,9 +93,16 @@ public class MainActivity extends AppCompatActivity {
         switchMonitor1 = findViewById(R.id.switch_monitor1);
         switchMonitor2 = findViewById(R.id.switch_monitor2);
         statusButton = findViewById(R.id.status_button);
+        settingsButton = findViewById(R.id.settings_button);
         viewLogButton = findViewById(R.id.view_log_button);
         debugInfo = findViewById(R.id.debug_info);
         contentContainer = findViewById(R.id.content_container);
+
+        // 设置按钮点击事件
+        settingsButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
+            startActivity(intent);
+        });
 
         // 状态按钮点击事件 - 手动检查服务器
         statusButton.setOnClickListener(v -> {
@@ -145,6 +162,38 @@ public class MainActivity extends AppCompatActivity {
 
         handler = new Handler();
         updateClock();
+        
+        // 根据设置检查是否显示台灯控制
+        checkFeatureSettings();
+    }
+
+    /**
+     * 检查功能设置，隐藏已禁用的功能
+     */
+    private void checkFeatureSettings() {
+        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
+        boolean lampEnabled = prefs.getBoolean("lamp_enabled", true);
+        boolean displayEnabled = prefs.getBoolean("display_enabled", true);
+        
+        // 隐藏/显示台灯控制按钮
+        if (btnLampOn != null && btnLampOff != null) {
+            int lampVisibility = lampEnabled ? View.VISIBLE : View.GONE;
+            btnLampOn.setVisibility(lampVisibility);
+            btnLampOff.setVisibility(lampVisibility);
+        }
+        
+        // 隐藏/显示器控制（包括文字和 checkbox）
+        if (switchMonitor1 != null && switchMonitor2 != null) {
+            int displayVisibility = displayEnabled ? View.VISIBLE : View.GONE;
+            // 隐藏/显示第一屏（文字 + 复选框）
+            View monitor1Layout = (View) switchMonitor1.getParent();
+            monitor1Layout.setVisibility(displayVisibility);
+            // 隐藏/显示第二屏（文字 + 复选框）
+            View monitor2Layout = (View) switchMonitor2.getParent();
+            monitor2Layout.setVisibility(displayVisibility);
+            // 隐藏/显示状态按钮
+            statusButton.setVisibility(displayVisibility);
+        }
     }
 
 
@@ -588,6 +637,8 @@ public class MainActivity extends AppCompatActivity {
                 View.SYSTEM_UI_FLAG_FULLSCREEN |
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         );
+        // 刷新功能显示状态
+        checkFeatureSettings();
     }
 
     @Override
