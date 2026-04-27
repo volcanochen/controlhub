@@ -89,6 +89,26 @@
             android:checked="true"/>
     </LinearLayout>
 
+    <!-- About App -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="关于"
+        android:textSize="18sp"
+        android:textColor="@android:color/white"
+        android:textStyle="bold"
+        android:layout_marginBottom="15dp"
+        android:layout_marginTop="10dp"/>
+
+    <Button
+        android:id="@+id/about_button"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="应用介绍"
+        android:textSize="16sp"
+        android:backgroundTint="#9C27B0"
+        android:layout_marginBottom="30dp"/>
+
     <!-- Back Button -->
     <Button
         android:id="@+id/back_button"
@@ -97,6 +117,6 @@
         android:text="返回"
         android:textSize="16sp"
         android:backgroundTint="#4CAF50"
-        android:layout_marginTop="30dp"/>
+        android:layout_marginTop="10dp"/>
 
 </LinearLayout>

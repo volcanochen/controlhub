@@ -1,6 +1,7 @@
 <resources>
-    <string name="app_name">手机控制台</string>
+    <string name="app_name">控制屏</string>
     <string name="time_format">HH:mm:ss</string>
     <string name="date_format">yyyy MM dd</string>
     <string name="day_format">EEEE</string>
+    <string name="app_version">v1.0.0</string>
 </resources>

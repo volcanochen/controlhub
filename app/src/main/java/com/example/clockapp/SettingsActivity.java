@@ -13,6 +13,7 @@ public class SettingsActivity extends AppCompatActivity {
     private Switch switchLamp;
     private Switch switchDisplay;
     private Button viewLogButton;
+    private Button aboutButton;
     private Button backButton;
     
     private SharedPreferences prefs;
@@ -29,6 +30,7 @@ public class SettingsActivity extends AppCompatActivity {
         switchLamp = findViewById(R.id.switch_lamp);
         switchDisplay = findViewById(R.id.switch_display);
         viewLogButton = findViewById(R.id.view_log_button);
+        aboutButton = findViewById(R.id.about_button);
         backButton = findViewById(R.id.back_button);
         
         // Load saved settings
@@ -52,6 +54,12 @@ public class SettingsActivity extends AppCompatActivity {
         // View log button
         viewLogButton.setOnClickListener(v -> {
             Intent intent = new Intent(SettingsActivity.this, LogActivity.class);
+            startActivity(intent);
+        });
+        
+        // About button
+        aboutButton.setOnClickListener(v -> {
+            Intent intent = new Intent(SettingsActivity.this, AboutActivity.class);
             startActivity(intent);
         });
         
