@@ -1,4 +1,4 @@
-package com.example.clockapp;
+package com.volcano.screen.miio;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -141,7 +141,7 @@ public class MiioDevice {
     private byte[] sendPacket(byte[] packet) throws IOException {
         if (socket == null) {
             socket = new DatagramSocket();
-            socket.setSoTimeout(10000); // 增加到 10 秒
+            socket.setSoTimeout(10000); // 10秒超时
         }
         
         try {
@@ -155,9 +155,9 @@ public class MiioDevice {
             
             return Arrays.copyOfRange(buffer, 0, receivePacket.getLength());
         } catch (java.net.SocketTimeoutException e) {
-            throw new IOException("连接超时：设备 " + ip + " 无响应，请检查 IP 地址和设备是否在线");
+            throw new IOException("无法连接到设备 " + ip + "，请检查IP是否正确");
         } catch (Exception e) {
-            throw new IOException("发送失败：" + e.getMessage());
+            throw new IOException("通信错误: " + e.getMessage());
         }
     }
     

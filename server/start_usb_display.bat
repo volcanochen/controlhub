@@ -29,6 +29,7 @@ echo ============================================================
 echo.
 
 REM Run Python script with unbuffered output
-python -u usb_display_control.py
+cd /d "%~dp0"
+python -u "%~dp0usb_display_control.py"
 
 pause

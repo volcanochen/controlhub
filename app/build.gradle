@@ -7,13 +7,18 @@ android {
     buildToolsVersion "33.0.0"
 
     defaultConfig {
-        applicationId "com.example.clockapp"
+        applicationId "com.volcano.screen"
         minSdk 21
         targetSdk 33
         versionCode 1
-        versionName "1.0"
+        versionName "1.1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+    
+    buildFeatures {
+        // 确保生成R.java
+        buildConfig = true
     }
 
     buildTypes {
@@ -25,8 +30,15 @@ android {
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
+        encoding = 'UTF-8'
     }
-    namespace 'com.example.clockapp'
+    
+    // 确保所有Java编译任务使用UTF-8编码
+    tasks.withType(JavaCompile) {
+        options.encoding = 'UTF-8'
+    }
+    
+    namespace 'com.volcano.screen'
 }
 
 dependencies {

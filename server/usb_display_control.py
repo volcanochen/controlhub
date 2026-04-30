@@ -217,6 +217,22 @@ class DisplayHandler(BaseHTTPRequestHandler):
         try:
             content_length = int(self.headers['Content-Length'])
             post_data = self.rfile.read(content_length)
+            
+            # Check if this is an upload test
+            if self.path == '/upload':
+                start = time.time()
+                response = {
+                    'received': len(post_data),
+                    'elapsed': time.time() - start,
+                    'speed_mbps': (len(post_data) / (time.time() - start) * 8 / 1024 / 1024) if (time.time() - start) > 0 else 0
+                }
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                return
+            
+            # Normal display switch command
             data = json.loads(post_data.decode('utf-8'))
             command = data.get('command', '')
             
@@ -237,16 +253,35 @@ class DisplayHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({'success': False, 'message': str(e)}).encode('utf-8'))
     
     def do_GET(self):
-        """Handle GET request - return display status (real-time detection)"""
-        print("=" * 50)
-        print(f"GET /status requested!")
-        print("=" * 50)
+        """Handle GET request - support speed test and display status"""
         try:
+            # Speed test: Ping
+            if self.path == '/ping':
+                response = {'status': 'pong', 'time': time.time()}
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                return
+            
+            # Speed test: Download (send 10MB data)
+            if self.path == '/download':
+                data_size = 10 * 1024 * 1024  # 10MB
+                data = b'x' * data_size
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/octet-stream')
+                self.send_header('Content-Length', str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
+            
+            # Display status
             if self.path == '/status' or self.path.startswith('/status'):
-                # Real-time detection - always get current state
-                mode_int = get_current_display_mode()
+                print("=" * 50)
+                print(f"GET /status requested!")
+                print("=" * 50)
                 
-                # Map integer mode to name for logging
+                mode_int = get_current_display_mode()
                 mode_names = {1: 'internal', 2: 'external', 3: 'extend', 4: 'clone'}
                 mode_name = mode_names.get(mode_int, 'unknown')
                 
@@ -263,12 +298,14 @@ class DisplayHandler(BaseHTTPRequestHandler):
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode('utf-8'))
-            else:
-                # Health check
-                self.send_response(200)
-                self.send_header('Content-Type', 'application/json')
-                self.end_headers()
-                self.wfile.write(json.dumps({'status': 'running'}).encode('utf-8'))
+                return
+            
+            # Health check
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'status': 'running'}).encode('utf-8'))
+            
         except Exception as e:
             self.send_response(500)
             self.send_header('Content-Type', 'application/json')

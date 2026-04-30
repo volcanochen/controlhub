@@ -1,5 +1,6 @@
-package com.example.clockapp;
+package com.volcano.screen.ui;
 
+import com.volcano.screen.R;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;

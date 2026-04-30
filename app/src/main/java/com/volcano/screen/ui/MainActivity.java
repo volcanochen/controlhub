@@ -1,5 +1,6 @@
-package com.example.clockapp;
+package com.volcano.screen.ui;
 
+import com.volcano.screen.R;
 import androidx.appcompat.app.AppCompatActivity;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -17,6 +18,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
+import com.volcano.screen.settings.SettingsActivity;
+import com.volcano.screen.ui.LogActivity;
+import com.volcano.screen.display.WindowsDisplayController;
+import com.volcano.screen.miio.MiioDevice;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -303,7 +308,7 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(MainActivity.this, "控制失败: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                            Toast.makeText(MainActivity.this, "控制失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
@@ -388,7 +393,7 @@ public class MainActivity extends AppCompatActivity {
         };
         statusHandler.post(statusUpdateRunnable);
     }
-
+    
     /**
      * 更新服务器连接状态
      */
@@ -484,7 +489,7 @@ public class MainActivity extends AppCompatActivity {
                     int mode = controller.getCurrentMode();
                     controller.close();
                     
-                    debugMsg.append("3. 连接成功!\n");
+                    debugMsg.append("3. 连接成功！\n");
                     debugMsg.append("4. 服务器返回模式：").append(modeToString(mode)).append("\n");
                     debugMsg.append("5. 服务器状态：Ready ✓\n");
                     
@@ -502,10 +507,10 @@ public class MainActivity extends AppCompatActivity {
                     });
                     
                 } catch (Exception e) {
-                    debugMsg.append("3. 连接失败!\n");
+                    debugMsg.append("3. 连接失败！\n");
                     debugMsg.append("错误：").append(e.getMessage()).append("\n");
                     debugMsg.append("4. 服务器状态：Not Ready ✗\n");
-                    debugMsg.append("5. 请检查:\n");
+                    debugMsg.append("5. 请检查：\n");
                     debugMsg.append("   - USB 连接是否正常\n");
                     debugMsg.append("   - ADB reverse 是否设置\n");
                     debugMsg.append("   - 电脑端服务器是否运行");

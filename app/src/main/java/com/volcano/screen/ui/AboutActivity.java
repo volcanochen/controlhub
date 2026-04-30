@@ -1,5 +1,6 @@
-package com.example.clockapp;
+package com.volcano.screen.ui;
 
+import com.volcano.screen.R;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.TextView;
@@ -15,7 +16,7 @@ public class AboutActivity extends AppCompatActivity {
         // Display version
         TextView versionText = findViewById(R.id.version_text);
         String versionName = getString(R.string.app_version);
-        versionText.setText("版本：" + versionName);
+        versionText.setText("版本: " + versionName);
         
         // Back button
         Button backButton = findViewById(R.id.back_button);

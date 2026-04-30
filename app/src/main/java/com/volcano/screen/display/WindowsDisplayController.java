@@ -1,4 +1,4 @@
-package com.example.clockapp;
+package com.volcano.screen.display;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -8,29 +8,29 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 
 /**
- * Windows 显示器控制器（ADB Reverse 通道版本）
- * 通过 ADB reverse 功能建立手机到电脑的通信通道
+ * Windows显示控制器 - 通过ADB Reverse进行通信
+ * 使用ADB reverse端口转发技术
  * 
- * 工作原理：
- * 1. 手机通过 USB 连接 Windows 电脑
- * 2. 电脑运行 usb_display_control.py 建立 ADB reverse
- * 3. 手机通过 localhost:8765 发送 HTTP 请求
- * 4. ADB reverse 将请求转发到电脑
- * 5. 电脑接收请求并执行 DisplaySwitch.exe
+ * 工作原理:
+ * 1. 手机通过USB连接到Windows电脑
+ * 2. 电脑端usb_display_control.py建立ADB reverse
+ * 3. 手机通过localhost:8765进行HTTP请求
+ * 4. 通过ADB reverse转发请求到电脑
+ * 5. 电脑调用DisplaySwitch.exe切换显示
  */
 public class WindowsDisplayController {
     
-    // 显示模式常量
-    public static final int MODE_PRIMARY_ONLY = 1;      // 仅第一屏
-    public static final int MODE_SECONDARY_ONLY = 2;    // 仅第二屏
-    public static final int MODE_EXTENDED = 3;          // 扩展模式（双屏）
+    // 显示模式
+    public static final int MODE_PRIMARY_ONLY = 1;      // 仅主屏
+    public static final int MODE_SECONDARY_ONLY = 2;    // 仅副屏
+    public static final int MODE_EXTENDED = 3;          // 扩展模式
     public static final int MODE_DUPLICATE = 4;         // 复制模式
     
-    // 服务端地址（通过 ADB reverse 连接到电脑）
+    // 手机通过ADB reverse连接到电脑服务器
     private static final String SERVER_URL = "http://localhost:8765";
     
     /**
-     * 设置显示器模式
+     * 设置显示模式
      * @param mode 显示模式
      */
     public void setDisplayMode(int mode) throws Exception {
@@ -57,8 +57,8 @@ public class WindowsDisplayController {
     }
     
     /**
-     * 发送 HTTP 命令到电脑
-     * 通过 ADB reverse 通道，localhost 会连接到电脑
+     * 发送HTTP命令到电脑
+     * 通过ADB reverse转发到localhost
      */
     private void sendHttpCommand(String command) throws Exception {
         URL url = new URL(SERVER_URL + "/");
@@ -67,11 +67,11 @@ public class WindowsDisplayController {
         try {
             conn.setRequestMethod("POST");
             conn.setRequestProperty("Content-Type", "application/json");
-            conn.setConnectTimeout(10000);  // 10 秒连接超时
-            conn.setReadTimeout(15000);     // 15 秒读取超时（给 PC 足够时间执行）
+            conn.setConnectTimeout(10000);  // 10秒超时
+            conn.setReadTimeout(15000);     // 15秒PC端操作超时
             conn.setDoOutput(true);
             
-            // 构建 JSON 请求体
+            // 构建JSON请求体
             String jsonBody = "{\"command\":\"" + command + "\"}";
             
             try (OutputStream os = conn.getOutputStream()) {
@@ -94,10 +94,10 @@ public class WindowsDisplayController {
                 }
                 errorReader.close();
                 
-                throw new Exception("命令执行失败 (HTTP " + responseCode + "): " + error.toString());
+                throw new Exception("命令失败 (HTTP " + responseCode + "): " + error.toString());
             }
             
-            // 读取成功响应
+            // 读取响应
             BufferedReader reader = new BufferedReader(
                 new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8)
             );
@@ -115,18 +115,18 @@ public class WindowsDisplayController {
     }
     
     /**
-     * 获取当前显示器模式
+     * 获取当前显示模式
      * @return 当前模式
      */
     public int getCurrentMode() throws Exception {
-        // 先发送简单的 GET 请求检查服务器是否可达
+        // GET请求获取状态
         URL url = new URL(SERVER_URL + "/status");
         HttpURLConnection conn = (HttpURLConnection) url.openConnection();
         
         try {
             conn.setRequestMethod("GET");
-            conn.setConnectTimeout(10000);  // 10 秒连接超时
-            conn.setReadTimeout(10000);     // 10 秒读取超时
+            conn.setConnectTimeout(10000);  // 10秒超时
+            conn.setReadTimeout(10000);     // 10秒超时
             
             int responseCode = conn.getResponseCode();
             
@@ -146,20 +146,20 @@ public class WindowsDisplayController {
             }
             reader.close();
             
-            // 解析 JSON 响应
+            // 解析JSON响应
             String responseStr = response.toString();
             
-            // 解析 mode 字段（整数格式）
-            // 响应格式：{"status": "ok", "mode": 1, "mode_name": "internal", ...}
+            // 提取mode字段
+            // {"status": "ok", "mode": 1, "mode_name": "internal", ...}
             try {
-                // 简单字符串匹配提取 mode 值
+                // 简单解析mode值
                 int modeStart = responseStr.indexOf("\"mode\":");
                 if (modeStart != -1) {
                     int commaPos = responseStr.indexOf(",", modeStart);
                     String modePart = responseStr.substring(modeStart + 7, commaPos).trim();
                     int mode = Integer.parseInt(modePart);
                     
-                    // 验证模式值范围
+                    // 验证模式是否有效
                     if (mode >= 0 && mode <= 4) {
                         return mode;
                     }
@@ -177,9 +177,9 @@ public class WindowsDisplayController {
     }
     
     /**
-     * 关闭控制器
+     * 关闭连接
      */
     public void close() {
-        // 无状态，不需要特别处理
+        // 不需要特殊清理
     }
 }
