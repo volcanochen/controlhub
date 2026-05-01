@@ -1,142 +1,338 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
     android:background="@android:color/black"
-    android:padding="20dp">
+    android:fillViewport="true"
+    android:scrollbars="vertical">
 
-    <!-- Title -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="设置"
-        android:textSize="28sp"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:layout_marginBottom="30dp"/>
-
-    <!-- View Log Button -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="日志管理"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:layout_marginBottom="15dp"/>
-
-    <Button
-        android:id="@+id/view_log_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="查看日志"
-        android:textSize="16sp"
-        android:backgroundTint="#2196F3"
-        android:layout_marginBottom="30dp"/>
-
-    <!-- Feature Settings -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="功能开关"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:layout_marginBottom="15dp"/>
-
-    <!-- Lamp Control -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="15dp">
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:descendantFocusability="beforeDescendants"
+        android:focusableInTouchMode="true">
 
+        <!-- Title -->
         <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="台灯控制"
-            android:textSize="16sp"
-            android:textColor="@android:color/white"/>
-
-        <Switch
-            android:id="@+id/switch_lamp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:checked="true"/>
-    </LinearLayout>
+            android:text="设置"
+            android:textSize="26sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp"/>
 
-    <!-- Display Control -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginBottom="15dp">
-
-        <TextView
-            android:layout_width="0dp"
+        <!-- Card 1: Communication Settings -->
+        <LinearLayout
+            android:id="@+id/card_communication"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:text="显示器控制"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="通信设置"
+                android:textSize="18sp"
+                android:textColor="#FF9800"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="通信方式"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginBottom="6dp"/>
+
+            <RadioGroup
+                android:id="@+id/communication_mode_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp">
+
+                <RadioButton
+                    android:id="@+id/radio_auto"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="自动选择（优先USB）"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="#FF9800"
+                    android:textSize="14sp"/>
+
+                <RadioButton
+                    android:id="@+id/radio_usb"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="仅 USB"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="#FF9800"
+                    android:textSize="14sp"/>
+
+                <RadioButton
+                    android:id="@+id/radio_wifi"
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:text="仅 WiFi"
+                    android:textColor="@android:color/white"
+                    android:buttonTint="#FF9800"
+                    android:textSize="14sp"/>
+            </RadioGroup>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="WiFi 服务器地址"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginBottom="6dp"/>
+
+            <EditText
+                android:id="@+id/wifi_address_edit"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:inputType="text"
+                android:textColor="@android:color/white"
+                android:textColorHint="#888888"
+                android:hint="例如: 192.168.50.111"
+                android:textSize="14sp"
+                android:background="@drawable/edit_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:layout_marginBottom="10dp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="WiFi 服务器端口"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginBottom="6dp"/>
+
+            <EditText
+                android:id="@+id/wifi_port_edit"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:inputType="number"
+                android:textColor="@android:color/white"
+                android:textColorHint="#888888"
+                android:hint="默认: 8765"
+                android:textSize="14sp"
+                android:background="@drawable/edit_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"/>
+        </LinearLayout>
+
+        <!-- Card 2: Network Test -->
+        <LinearLayout
+            android:id="@+id/card_network"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="网络测试"
+                android:textSize="18sp"
+                android:textColor="#FF9800"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginBottom="10dp"/>
+
+            <Button
+                android:id="@+id/test_connection_button"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="测试连接"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#FF9800"
+                android:layout_marginBottom="10dp"/>
+
+            <Button
+                android:id="@+id/network_speed_button"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="网速测试"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#2196F3"/>
+        </LinearLayout>
+
+        <!-- Card 3: Feature Settings -->
+        <LinearLayout
+            android:id="@+id/card_features"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="功能开关"
+                android:textSize="18sp"
+                android:textColor="#FF9800"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginBottom="10dp"/>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="台灯控制"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/white"/>
+
+                <Switch
+                    android:id="@+id/switch_lamp"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:thumbTint="#4CAF50"
+                    android:trackTint="#81C784"/>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="显示器控制"
+                    android:textSize="14sp"
+                    android:textColor="@android:color/white"/>
+
+                <Switch
+                    android:id="@+id/switch_display"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:thumbTint="#4CAF50"
+                    android:trackTint="#81C784"/>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Card 4: Log -->
+        <LinearLayout
+            android:id="@+id/card_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="日志管理"
+                android:textSize="18sp"
+                android:textColor="#FF9800"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginBottom="10dp"/>
+
+            <Button
+                android:id="@+id/view_log_button"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="查看日志"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#2196F3"/>
+        </LinearLayout>
+
+        <!-- Card 5: About -->
+        <LinearLayout
+            android:id="@+id/card_about"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="@drawable/card_bg"
+            android:padding="12dp"
+            android:layout_marginBottom="16dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="关于"
+                android:textSize="18sp"
+                android:textColor="#FF9800"
+                android:textStyle="bold"
+                android:layout_marginBottom="10dp"/>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginBottom="10dp"/>
+
+            <Button
+                android:id="@+id/about_button"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="应用介绍"
+                android:textSize="14sp"
+                android:textColor="@android:color/white"
+                android:backgroundTint="#9C27B0"/>
+        </LinearLayout>
+
+        <!-- Back Button -->
+        <Button
+            android:id="@+id/back_button"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="返回"
             android:textSize="16sp"
-            android:textColor="@android:color/white"/>
+            android:textColor="@android:color/white"
+            android:backgroundTint="#4CAF50"
+            android:layout_marginBottom="30dp"/>
 
-        <Switch
-            android:id="@+id/switch_display"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"/>
     </LinearLayout>
-
-    <!-- Network Speed Test -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="网络工具"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:layout_marginBottom="15dp"
-        android:layout_marginTop="10dp"/>
-
-    <Button
-        android:id="@+id/network_speed_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="📊 网速测试 (USB 连接)"
-        android:textSize="16sp"
-        android:backgroundTint="#2196F3"
-        android:layout_marginBottom="30dp"/>
-
-    <!-- About App -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="关于"
-        android:textSize="18sp"
-        android:textColor="@android:color/white"
-        android:textStyle="bold"
-        android:layout_marginBottom="15dp"
-        android:layout_marginTop="10dp"/>
-
-    <Button
-        android:id="@+id/about_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="应用介绍"
-        android:textSize="16sp"
-        android:backgroundTint="#9C27B0"
-        android:layout_marginBottom="30dp"/>
-
-    <!-- Back Button -->
-    <Button
-        android:id="@+id/back_button"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="返回"
-        android:textSize="16sp"
-        android:backgroundTint="#4CAF50"
-        android:layout_marginTop="10dp"/>
-
-</LinearLayout>
+</ScrollView>

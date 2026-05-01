@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-USB Display Control Server
-Controls Windows display via ADB reverse channel
+Display Control Server (USB + WiFi)
+Controls Windows display via ADB reverse or WiFi network
 """
 
 import subprocess
@@ -92,61 +92,24 @@ def switch_display(mode):
         return False, msg
 
 def get_current_display_mode():
-    """Get current display mode using PowerShell for accurate detection
+    """Get current display mode using external PowerShell script
     Returns:
         int: 0 = unknown, 1 = primary only, 2 = secondary only, 3 = extended, 4 = duplicate
-    
-    Logic:
-    - Parse all active screens from PowerShell
-    - Extract display ID from DeviceName (e.g., "\\\\.\\DISPLAY1" -> 1)
-    - The screen with smaller ID is "primary display" (第一屏)
-    - The screen with larger ID is "secondary display" (第二屏)
     """
     try:
         import subprocess
+        import os
+        import re
         
-        # Use PowerShell with DisplayConfig API via .NET
-        ps_cmd = r"""
-$ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.Windows.Forms
-
-# Get all screens
-$screens = [System.Windows.Forms.Screen]::AllScreens
-
-# Count active screens
-$count = $screens.Count
-Write-Host "ACTIVE_COUNT:$count"
-
-# Get primary screen info
-$primary = $screens | Where-Object { $_.Primary }
-$primary_exists = ($primary -ne $null)
-Write-Host "PRIMARY_EXISTS:$primary_exists"
-
-# Get detailed info for each screen and extract display IDs
-$display_ids = @()
-for ($i = 0; $i -lt $count; $i++) {
-    $screen = $screens[$i]
-    Write-Host "SCREEN_$i`: Bounds=$($screen.Bounds.Width)x$($screen.Bounds.Height), Primary=$($screen.Primary), DeviceName=$($screen.DeviceName)"
-    
-    # Extract display ID from DeviceName (e.g., "\\.\DISPLAY1" -> 1)
-    if ($screen.DeviceName -match 'DISPLAY(\d+)') {
-        $id = [int]$matches[1]
-        $display_ids += $id
-        Write-Host "DISPLAY_ID:$id, Primary=$($screen.Primary)"
-    }
-}
-
-# Output primary device name if exists
-if ($primary_exists) {
-    Write-Host "PRIMARY_DEVICE:$($primary.DeviceName)"
-}
-
-# Output all display IDs for analysis
-Write-Host "ALL_IDS:$($display_ids -join ',')"
-"""
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        ps_script = os.path.join(script_dir, 'get_displays.ps1')
+        
+        if not os.path.exists(ps_script):
+            print(f"Warning: {ps_script} not found, using fallback")
+            return 3
         
         result = subprocess.run(
-            ['powershell', '-Command', ps_cmd],
+            ['powershell', '-ExecutionPolicy', 'Bypass', '-File', ps_script],
             capture_output=True,
             text=True,
             timeout=10
@@ -156,53 +119,36 @@ Write-Host "ALL_IDS:$($display_ids -join ',')"
             output = result.stdout
             print(f"PowerShell output:\n{output}")
             
-            # Parse active count
-            import re
             count_match = re.search(r'ACTIVE_COUNT:(\d+)', output)
             if count_match:
                 count = int(count_match.group(1))
                 print(f"Active displays: {count}")
                 
                 if count == 0:
-                    return 0  # Unknown
+                    return 0
                 elif count == 1:
-                    # Single display - extract its ID
-                    # Find all display IDs
                     id_matches = re.findall(r'DISPLAY_ID:(\d+)', output)
                     if id_matches:
                         display_id = int(id_matches[0])
                         print(f"Single display ID: {display_id}")
-                        
-                        # Smaller ID (1) = primary display (第一屏)
-                        # Larger ID (2+) = secondary display (第二屏)
                         if display_id == 1:
                             print("-> Primary only (mode=1) - DISPLAY1")
-                            return 1  # MODE_PRIMARY_ONLY
+                            return 1
                         else:
                             print(f"-> Secondary only (mode=2) - DISPLAY{display_id}")
-                            return 2  # MODE_SECONDARY_ONLY
+                            return 2
                     else:
-                        # Fallback: try to parse from ALL_IDS
                         all_ids_match = re.search(r'ALL_IDS:(.+)', output)
                         if all_ids_match:
                             ids = [int(x.strip()) for x in all_ids_match.group(1).split(',')]
                             if ids and len(ids) == 1:
-                                if ids[0] == 1:
-                                    print("-> Primary only (mode=1) [fallback]")
-                                    return 1
-                                else:
-                                    print("-> Secondary only (mode=2) [fallback]")
-                                    return 2
-                        
-                        # Ultimate fallback
+                                return 1 if ids[0] == 1 else 2
                         print("-> Primary only (mode=1) [default]")
                         return 1
                 else:
-                    # Multiple displays - extended mode
                     print("-> Extended mode (mode=3)")
-                    return 3  # MODE_EXTENDED
+                    return 3
         
-        # Fallback
         print("PowerShell detection failed, default to extended")
         return 3
         
@@ -210,7 +156,7 @@ Write-Host "ALL_IDS:$($display_ids -join ',')"
         print(f"Error getting display mode: {e}")
         import traceback
         traceback.print_exc()
-        return 3  # Default to extended
+        return 3
 
 class DisplayHandler(BaseHTTPRequestHandler):
     def do_POST(self):
@@ -362,18 +308,18 @@ def setup_adb_reverse():
 
 def main():
     print("=" * 60)
-    print("USB Display Control Server")
+    print("Display Control Server (USB + WiFi)")
     print("=" * 60)
     print()
     
-    if not setup_adb_reverse():
-        print()
-        print("[ERROR] Failed to setup ADB reverse")
-        print("Please check:")
-        print("1. USB cable is connected")
-        print("2. USB debugging is enabled")
-        input("Press Enter to exit...")
-        return
+    # Try to setup ADB reverse (optional, for USB connection)
+    try:
+        if setup_adb_reverse():
+            print("[OK] USB connection ready")
+        else:
+            print("[INFO] USB connection not available, but WiFi may still work")
+    except Exception as e:
+        print(f"[INFO] USB setup skipped: {e}")
     
     print()
     print("=" * 60)
@@ -382,9 +328,23 @@ def main():
     print()
     
     try:
-        server = HTTPServer(('localhost', PORT), DisplayHandler)
+        # Listen on all network interfaces to support WiFi connection
+        server = HTTPServer(('0.0.0.0', PORT), DisplayHandler)
         print(f"[OK] Server started on port {PORT}")
+        print(f"[INFO] Listening on all network interfaces")
+        
+        # Display local IP address for WiFi connection
+        hostname = socket.gethostname()
+        try:
+            local_ip = socket.gethostbyname(hostname)
+            print(f"[INFO] Local IP address: {local_ip}")
+            print(f"[INFO] Connect via WiFi using: http://{local_ip}:{PORT}")
+        except Exception:
+            print(f"[INFO] Could not determine local IP address")
+        
+        print()
         print("Listening for requests...")
+        print("(Server is running normally, waiting for phone to connect)")
         print()
         server.serve_forever()
     except KeyboardInterrupt:

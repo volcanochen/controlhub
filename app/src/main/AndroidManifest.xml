@@ -19,7 +19,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".settings.SettingsActivity"
+        <activity android:name=".ui.SettingsActivity"
             android:screenOrientation="portrait" />
         <activity android:name=".ui.LogActivity"
             android:screenOrientation="portrait" />
