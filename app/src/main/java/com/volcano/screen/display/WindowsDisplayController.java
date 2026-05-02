@@ -208,27 +208,4 @@ public class WindowsDisplayController implements DisplayController {
     public String getConnectionType() {
         return "USB";
     }
-    
-    /**
-     * 检查USB连接是否可用
-     * @return true if connected
-     */
-    @Override
-    public boolean isAvailable() {
-        try {
-            getCurrentMode();
-            return true;
-        } catch (Exception e) {
-            return false;
-        }
-    }
-    
-    /**
-     * 获取连接类型名称
-     * @return "USB"
-     */
-    @Override
-    public String getConnectionType() {
-        return "USB";
-    }
 }

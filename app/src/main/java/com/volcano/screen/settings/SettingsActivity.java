@@ -19,7 +19,7 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.volcano.screen.ui.LogActivity;
 import com.volcano.screen.ui.AboutActivity;
-import com.volcano.screen.speedtest.NetworkSpeedTester;
+import com.volcano.screen.network.NetworkSpeedTester;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 

@@ -18,7 +18,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import com.volcano.screen.ui.SettingsActivity;
+import com.volcano.screen.settings.SettingsActivity;
 import com.volcano.screen.ui.LogActivity;
 import com.volcano.screen.imagecast.ImageDisplayActivity;
 import com.volcano.screen.display.DisplayController;
