@@ -2,10 +2,10 @@
 
 ## 项目概述
 
-本项目实现了一个通过 Android 手机远程控制 Windows 电脑显示器模式的工具，采用 USB 连接和 ADB reverse 技术建立通信通道。
+本项目实现了一个通过 Android 手机远程控制 Windows 电脑显示器模式的工具，采用 USB 连接和 ADB reverse 技术建立通信通道。项目还支持 PC 端向手机端投放图片功能。
 
 **开发日期**: 2026-04-27  
-**版本**: v1.1.0
+**版本**: v1.4.0
 
 ---
 
@@ -15,12 +15,13 @@
 2. [系统架构](#2-系统架构)
 3. [技术选型](#3-技术选型)
 4. [核心功能实现](#4-核心功能实现)
-5. [UI/UX 设计演进](#5-uixux-设计演进)
-6. [关键技术难点与解决方案](#6-关键技术难点与解决方案)
-7. [代码修改记录](#7-代码修改记录)
-8. [测试策略](#8-测试策略)
-9. [性能优化](#9-性能优化)
-10. [未来改进方向](#10-未来改进方向)
+5. [图片投放功能](#5-图片投放功能)
+6. [UI/UX 设计演进](#6-uixux-设计演进)
+7. [关键技术难点与解决方案](#7-关键技术难点与解决方案)
+8. [代码修改记录](#8-代码修改记录)
+9. [测试策略](#9-测试策略)
+10. [性能优化](#10-性能优化)
+11. [未来改进方向](#11-未来改进方向)
 
 ---
 
@@ -41,6 +42,15 @@
 | FR-09 | 设置功能（启用/禁用各项功能） | P1 |
 | FR-10 | 日志查看功能 | P1 |
 | FR-11 | 关于页面（应用信息） | P2 |
+| FR-12 | PC 端向手机端投放图片 | P0 |
+| FR-13 | 手机端手势控制（缩放、移动） | P1 |
+| FR-14 | 投放图片时自动弹窗显示 | P0 |
+| FR-15 | 远程关闭图片显示界面 | P1 |
+| FR-16 | Windows 系统托盘服务 | P1 |
+| FR-17 | USB 断开后自动重连 | P1 |
+| FR-18 | PC 端亮度控制 | P1 |
+| FR-19 | 手机端光照传感器联动 | P2 |
+| FR-20 | 网速测试 | P2 |
 
 ### 1.2 非功能需求
 
@@ -49,6 +59,7 @@
 - **易用性**: 一键操作，无需复杂配置
 - **低功耗**: 轮询间隔 ≥ 10 秒
 - **兼容性**: 支持 Windows 10/11，Android 9+
+- **图片传输**: 支持 JPEG、PNG 格式，最大 10MB
 
 ---
 
@@ -60,16 +71,22 @@
 ┌─────────────────────────────────────────────────────────┐
 │                    Android Client                        │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │  UI Layer   │  │ Controller   │  │ HTTP Client  │   │
-│  │  (Layout)   │  │ (MainActivity)│  │ (Network)   │   │
+│  │  UI Layer   │  │ Controller   │  │ Network      │   │
+│  │  (Layout)   │  │ (Display/    │  │ (Server      │   │
+│  │             │  │  ImageCast)  │  │  Connector)  │   │
 │  └─────────────┘  └──────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────────┘
-                         ↕ USB/ADB
+                         ↕ USB/ADB / WiFi
 ┌─────────────────────────────────────────────────────────┐
 │                    PC Server (Python)                    │
 │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐   │
-│  │ HTTP Server │  │ Display      │  │ PowerShell   │   │
-│  │ (Port 8765) │  │ Controller   │  │ Detector     │   │
+│  │ HTTP Server │  │ Display      │  │ Image        │   │
+│  │ (Port 8765) │  │ Controller   │  │ Casting      │   │
+│  └─────────────┘  └──────────────┘  └──────────────┘   │
+│  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ ADB Monitor │  │ Brightness   │  │ Speed Test   │   │
+│  │ (Auto-      │  │ Control      │  │ (/ping,      │   │
+│  │  Reconnect) │  │              │  │  /download)  │   │
 │  └─────────────┘  └──────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────────┘
                          ↕ Windows API
@@ -276,9 +293,181 @@ private void updateCheckBoxesFromMode(int mode) {
 
 ---
 
-## 5. UI/UX 设计演进
+## 5. 图片投放功能
 
-### 5.1 第 1 版：基础布局
+### 5.1 功能概述
+
+图片投放功能允许 PC 端向 Android 手机端投放图片并全屏显示，支持手势控制和远程关闭。
+
+### 5.2 架构设计
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    图片投放架构                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│   PC Server                    ADB Reverse              Android │
+│   ┌──────────────┐              │                    ┌──────────┐
+│   │ 图片上传 API │──────────────┼───────────────────→│  Image   │
+│   │ /image/upload│              │                    │ Display  │
+│   ├──────────────┤              │                    │ Activity │
+│   │ 图片状态 API │←─────────────┼───────────────────┤          │
+│   │ /image/status│   轮询(3s)   │                    └──────────┘
+│   ├──────────────┤              │
+│   │ 图片清除 API │──────────────┼───────────────────→│ 自动关闭 │
+│   │ /image/clear │   close flag │                    └──────────┘
+│   ├──────────────┤              │
+│   │ 系统托盘服务 │              │
+│   └──────────────┘              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 5.3 API 接口设计
+
+| API 路径 | 方法 | 功能描述 |
+|---------|------|---------|
+| `/status` | GET | 获取当前显示器状态 |
+| `/` | POST | 切换显示器模式 |
+| `/image/status` | GET | 获取当前图片状态 |
+| `/image/data` | GET | 获取图片二进制数据 |
+| `/image/upload` | POST | 上传图片文件 |
+| `/image/cast` | POST/GET | 投放指定路径图片 |
+| `/image/clear` | POST | 清除图片并关闭窗口 |
+| `/image/scale` | POST | 设置缩放比例 |
+| `/image/zoom-in` | POST | 放大图片 |
+| `/image/zoom-out` | POST | 缩小图片 |
+| `/image/zoom-reset` | POST | 重置缩放 |
+| `/image/poll` | GET | 轮询更新 |
+| `/image/ack-popup` | POST | 确认自动弹窗 |
+| `/image/ack-close` | POST | 确认关闭窗口 |
+| `/image/list` | GET | 列出目录中的图片 |
+| `/brightness` | POST | 亮度控制 |
+| `/ping` | GET | 健康检查 |
+| `/download` | GET | 下载速度测试 |
+| `/upload` | POST | 上传速度测试 |
+| `/api` | GET | API 文档 |
+
+### 5.4 状态管理
+
+服务器端维护以下状态：
+
+```python
+class ImageState:
+    has_image = False      # 是否有图片
+    image_data = None      # 图片二进制数据
+    auto_popup = False     # 是否自动弹窗
+    close_window = False   # 是否关闭窗口
+    scale = 1.0            # 缩放比例
+    last_update = 0        # 最后更新时间戳
+```
+
+### 5.5 手机端实现
+
+#### 5.5.1 ImageDisplayActivity
+
+```java
+public class ImageDisplayActivity extends AppCompatActivity {
+    private ImageView imageView;
+    private float scale = 1.0f;
+    private float lastScale = 1.0f;
+    
+    // 双指缩放
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        if (event.getPointerCount() == 2) {
+            // 计算两指距离
+            float distance = getDistance(event);
+            if (event.getAction() == MotionEvent.ACTION_MOVE) {
+                scale = lastScale * (distance / initialDistance);
+                applyScale();
+            }
+        }
+        return true;
+    }
+    
+    // 双击切换尺寸（100% / 全屏）
+    private void handleDoubleTap() {
+        if (scale == 1.0f) {
+            scale = getFitScreenScale();  // 占满屏幕
+        } else {
+            scale = 1.0f;  // 原始尺寸
+        }
+        applyScale();
+    }
+}
+```
+
+#### 5.5.2 ImageCastingController
+
+```java
+public class ImageCastingController {
+    private static final String SERVER_URL = "http://localhost:8765";
+    
+    public ImageStatus getImageStatus() {
+        // GET /image/status
+        // 解析 JSON 响应
+        return parseImageStatus(response);
+    }
+    
+    public byte[] downloadImageBytes() {
+        // GET /image/data
+        // 返回图片二进制数据
+        return buffer.toByteArray();
+    }
+    
+    public PollResult pollUpdates(double lastKnownTime) {
+        // GET /image/poll?t=<timestamp>
+        return parsePollResult(response);
+    }
+    
+    public void ackAutoPopup() {
+        // POST /image/ack-popup
+    }
+    
+    public void ackCloseWindow() {
+        // POST /image/ack-close
+    }
+}
+```
+
+### 5.6 系统托盘服务
+
+```python
+class TrayService:
+    def __init__(self):
+        self.tray = pystray.Icon('image-cast')
+        self.tray.menu = pystray.Menu(
+            pystray.MenuItem('Cast Image...', self._cast_image),
+            pystray.MenuItem('Clear Image', self._clear_image),
+            pystray.MenuItem('Zoom In', self._zoom_in),
+            pystray.MenuItem('Zoom Out', self._zoom_out),
+            pystray.MenuItem('Exit', self._exit)
+        )
+    
+    def _cast_image(self):
+        # 打开文件选择对话框
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            # 调用 /image/cast API
+            self._send_request('/image/cast', {'image_path': file_path})
+```
+
+### 5.7 自动弹窗机制
+
+**工作流程**：
+
+1. PC 端调用 `/image/cast`，设置 `auto_popup=True`
+2. 手机端轮询 `/image/status` 检测到 `auto_popup=True`
+3. 手机端自动启动 `ImageDisplayActivity`
+4. Activity 读取 `/image/data` 获取图片并显示
+5. PC 端调用 `/image/clear`，设置 `close_window=True`
+6. 手机端轮询检测到 `close_window=True`，关闭 Activity
+
+---
+
+## 6. UI/UX 设计演进
+
+### 6.1 第 1 版：基础布局
 
 **设计**:
 ```
@@ -296,7 +485,7 @@ private void updateCheckBoxesFromMode(int mode) {
 - ❌ CheckBox 在黑色背景下看不清
 - ❌ 布局松散
 
-### 5.2 第 2 版：改进布局
+### 6.2 第 2 版：改进布局
 
 **设计**:
 ```
@@ -313,7 +502,7 @@ private void updateCheckBoxesFromMode(int mode) {
 - ✅ 紧凑布局，节省空间
 - ✅ Ready 状态按钮可点击
 
-### 5.3 关键 UI 修改
+### 6.3 关键 UI 修改
 
 #### 修改 1: CheckBox 样式
 
@@ -363,9 +552,9 @@ private void updateCheckBoxesFromMode(int mode) {
 
 ---
 
-## 6. 关键技术难点与解决方案
+## 7. 关键技术难点与解决方案
 
-### 6.1 难点 1: 显示器状态检测不准确
+### 7.1 难点 1: 显示器状态检测不准确
 
 **问题描述**: 
 切换到"仅第二屏"后，检测到的仍是"仅第一屏"
@@ -397,7 +586,7 @@ def get_current_display_mode():
     # 解析输出并返回模式
 ```
 
-### 6.2 难点 2: Android 端状态不同步
+### 7.2 难点 2: Android 端状态不同步
 
 **问题描述**:
 用户取消勾选后，CheckBox 立即恢复勾选状态
@@ -431,7 +620,7 @@ switchMonitor1.setOnCheckedChangeListener((buttonView, isChecked) -> {
 });
 ```
 
-### 6.3 难点 3: JSON 解析兼容性问题
+### 7.3 难点 3: JSON 解析兼容性问题
 
 **问题描述**:
 服务器返回整数格式 `{"mode": 1}`，Android 期望字符串格式 `{"mode": "internal"}`
@@ -458,9 +647,9 @@ if (modeStart != -1) {
 
 ---
 
-## 7. 代码修改记录
+## 8. 代码修改记录
 
-### 7.1 服务器端修改
+### 8.1 服务器端修改
 
 #### 修改 1: 移除状态缓存，实现实时检测
 
@@ -523,11 +712,11 @@ def switch_display(mode):
     return True, msg
 ```
 
-### 7.2 Android 端修改
+### 8.2 Android 端修改
 
 #### 修改 1: JSON 解析逻辑
 
-**文件**: `WindowsDisplayController.java`
+**文件**: `display/WindowsDisplayController.java`
 
 **修改前**:
 ```java
@@ -545,7 +734,7 @@ return mode;  // 1=internal, 2=external, 3=extend
 
 #### 修改 2: 防止递归更新
 
-**文件**: `MainActivity.java`
+**文件**: `ui/MainActivity.java`
 
 **新增**:
 ```java
@@ -569,9 +758,9 @@ private void updateCheckBoxesFromMode(int mode) {
 
 ---
 
-## 8. 测试策略
+## 9. 测试策略
 
-### 8.1 测试分层
+### 9.1 测试分层
 
 ```
 ┌─────────────────────────────┐
@@ -596,9 +785,17 @@ private void updateCheckBoxesFromMode(int mode) {
 │  功能测试 (TEST-003)        │
 │  - 显示器切换               │
 └─────────────────────────────┘
+              ↕
+┌─────────────────────────────┐
+│  图片投放测试 (TEST-007)    │
+│  - API 接口测试             │
+│  - 图片传输测试             │
+│  - 手势控制测试             │
+│  - 自动弹窗测试             │
+└─────────────────────────────┘
 ```
 
-### 8.2 自动化测试覆盖
+### 9.2 自动化测试覆盖
 
 | 测试模块 | 测试用例数 | 通过率 | 说明 |
 |---------|-----------|--------|------|
@@ -608,8 +805,11 @@ private void updateCheckBoxesFromMode(int mode) {
 | TEST-004 Android 通信 | 4 | 100% | ✅ 通信正常 |
 | TEST-005 错误处理 | 3 | 67% | 函数签名问题 |
 | TEST-006 集成测试 | 1 | 75% | ✅ 主流程正常 |
+| TEST-007 图片投放 API | 5 | 100% | ✅ 图片上传/投放正常 |
+| TEST-008 图片投放集成 | 3 | 100% | ✅ 端到端投放正常 |
+| TEST-009 图片数据验证 | 2 | 100% | ✅ 数据完整性验证 |
 
-### 8.3 手动测试检查单
+### 9.3 手动测试检查单
 
 ```
 □ 服务器启动成功
@@ -622,13 +822,21 @@ private void updateCheckBoxesFromMode(int mode) {
 □ 防止双屏全关
 □ 状态自动同步
 □ UI 显示清晰
+□ 图片投放成功（PC → 手机）
+□ 双指缩放正常
+□ 单指移动正常
+□ 双击切换尺寸正常
+□ 自动弹窗正常
+□ 远程关闭窗口正常
+□ 外部查看器按钮正常
+□ 系统托盘操作正常
 ```
 
 ---
 
-## 9. 性能优化
+## 10. 性能优化
 
-### 9.1 已实施的优化
+### 10.1 已实施的优化
 
 #### 优化 1: 轮询间隔调整
 
@@ -648,7 +856,7 @@ private void updateCheckBoxesFromMode(int mode) {
 **优化后**: 使用连接池（未来优化）  
 **效果**: 减少连接开销
 
-### 9.2 性能指标
+### 10.2 性能指标
 
 | 指标 | 目标值 | 实际值 | 状态 |
 |------|--------|--------|------|
@@ -660,14 +868,14 @@ private void updateCheckBoxesFromMode(int mode) {
 
 ---
 
-## 10. 未来改进方向
+## 11. 未来改进方向
 
-### 10.1 功能增强
+### 11.1 功能增强
 
 #### 计划 1: WiFi 无线连接
 
-**现状**: 需要 USB 线连接  
-**改进**: 支持 WiFi 连接  
+**现状**: ✅ 已实现基本 WiFi 连接功能  
+**改进**: 支持 mDNS 自动发现服务器、WebSocket 实时通信  
 **技术**: WebSocket + mDNS 服务发现  
 **优先级**: P2
 
@@ -685,7 +893,7 @@ private void updateCheckBoxesFromMode(int mode) {
 **技术**: SQLite 本地存储  
 **优先级**: P3
 
-### 10.2 性能优化
+### 11.2 性能优化
 
 #### 计划 1: 连接池
 
@@ -699,7 +907,7 @@ private void updateCheckBoxesFromMode(int mode) {
 **改进**: 只获取变化的状态  
 **预期效果**: 减少 70% 网络流量
 
-### 10.3 用户体验
+### 11.3 用户体验
 
 #### 计划 1: 通知栏快捷方式
 
@@ -725,15 +933,31 @@ private void updateCheckBoxesFromMode(int mode) {
 
 | 文件名 | 类型 | 说明 |
 |--------|------|------|
-| `usb_display_control.py` | Python | PC 服务器主程序 |
+| `core/usb_display_control.py` | Python | PC 服务器主程序 |
+| `core/windows_display_server.py` | Python | Windows 显示器控制（Flask 备用方案） |
+| `display/get_displays.ps1` | PowerShell | 获取显示器信息 |
+| `display/brightness_control.ps1` | PowerShell | 亮度控制脚本 |
+| `tray/tray_service.py` | Python | 系统托盘服务 |
+| `tools/setup_adb.py` | Python | ADB 端口转发设置 |
+| `tools/adb_listener.py` | Python | ADB 事件监听器 |
+| `tools/adb_display_server.py` | Python | ADB 显示服务器 |
+| `scripts/start_usb_display.bat` | Batch | Windows 启动脚本 |
 | `MainActivity.java` | Java | Android 主界面 |
-| `WindowsDisplayController.java` | Java | 显示控制器 |
+| `SettingsActivity.java` | Java | 设置界面 |
+| `DisplayController.java` | Java | 显示控制器接口 |
+| `DisplayControllerImpl.java` | Java | 显示控制器实现（USB/WiFi） |
+| `DisplayManager.java` | Java | 连接管理器 |
+| `BrightnessController.java` | Java | 亮度控制器 |
+| `ServerConnector.java` | Java | HTTP 通信封装 |
+| `NetworkSpeedTester.java` | Java | 网速测试 |
+| `ConnectionTester.java` | Java | 连接测试 |
+| `ImageDisplayActivity.java` | Java | 图片显示界面 |
+| `ImageCastingController.java` | Java | 图片投放控制器 |
 | `activity_main.xml` | XML | 界面布局 |
 | `test_display_control.py` | Python | 自动化测试脚本 |
 | `TEST_SPEC.md` | Markdown | 测试规范 |
 | `README.md` | Markdown | 项目说明 |
 | `DESIGN.md` | Markdown | 本文档 |
-| `app_screenshot.png` | PNG | 应用截图 |
 
 ---
 
@@ -783,9 +1007,15 @@ Content-Type: application/json
 
 ### B.2 Android API
 
-#### WindowsDisplayController
+#### DisplayControllerImpl
 
 ```java
+// 创建 USB 控制器
+DisplayControllerImpl controller = DisplayControllerImpl.createUsbController();
+
+// 创建 WiFi 控制器
+DisplayControllerImpl controller = DisplayControllerImpl.createWifiController("192.168.1.100", 8765);
+
 // 设置显示模式
 controller.setDisplayMode(int mode);
 
@@ -797,6 +1027,12 @@ MODE_PRIMARY_ONLY = 1;
 MODE_SECONDARY_ONLY = 2;
 MODE_EXTENDED = 3;
 MODE_DUPLICATE = 4;
+
+// 检查可用性
+boolean available = controller.isAvailable();
+
+// 获取连接类型
+String type = controller.getConnectionType(); // "USB" or "WiFi"
 ```
 
 ---
@@ -821,7 +1057,7 @@ MODE_DUPLICATE = 4;
 
 ---
 
-**文档版本**: 1.1  
+**文档版本**: 1.2  
 **创建日期**: 2026-04-27  
-**最后更新**: 2026-04-27  
+**最后更新**: 2026-05-03  
 **维护者**: Volcano Chen

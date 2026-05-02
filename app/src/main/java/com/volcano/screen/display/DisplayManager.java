@@ -35,11 +35,20 @@ public class DisplayManager {
     
     /**
      * Get display controller based on current settings
+     * Automatically detects and handles USB reconnect scenarios
      * @return display controller instance
      */
     public DisplayController getController() {
+        // If we have a cached controller, check if it's still available
+        // This handles the case when USB is disconnected and reconnected
         if (currentController != null) {
-            return currentController;
+            // Check if current controller is available
+            if (currentController.isAvailable()) {
+                return currentController;
+            }
+            // Controller became unavailable, reset and try to reconnect
+            currentController.close();
+            currentController = null;
         }
         
         int preferredMode = prefs.getInt(PREF_PREFERRED_MODE, MODE_AUTO);
@@ -48,10 +57,10 @@ public class DisplayManager {
         
         switch (preferredMode) {
             case MODE_USB:
-                currentController = new WindowsDisplayController();
+                currentController = DisplayControllerImpl.createUsbController();
                 break;
             case MODE_WIFI:
-                currentController = new WifiDisplayController(wifiAddress, wifiPort);
+                currentController = DisplayControllerImpl.createWifiController(wifiAddress, wifiPort);
                 break;
             case MODE_AUTO:
             default:
@@ -66,12 +75,12 @@ public class DisplayManager {
      * Auto select best available controller
      */
     private DisplayController autoSelectController(String wifiAddress, int wifiPort) {
-        WindowsDisplayController usbController = new WindowsDisplayController();
+        DisplayControllerImpl usbController = DisplayControllerImpl.createUsbController();
         if (usbController.isAvailable()) {
             return usbController;
         }
         
-        WifiDisplayController wifiController = new WifiDisplayController(wifiAddress, wifiPort);
+        DisplayControllerImpl wifiController = DisplayControllerImpl.createWifiController(wifiAddress, wifiPort);
         if (wifiController.isAvailable()) {
             return wifiController;
         }
@@ -128,7 +137,7 @@ public class DisplayManager {
      * Check if USB is available
      */
     public boolean isUsbAvailable() {
-        return new WindowsDisplayController().isAvailable();
+        return DisplayControllerImpl.createUsbController().isAvailable();
     }
     
     /**
@@ -137,7 +146,7 @@ public class DisplayManager {
     public boolean isWifiAvailable() {
         String address = getWifiAddress();
         int port = getWifiPort();
-        return new WifiDisplayController(address, port).isAvailable();
+        return DisplayControllerImpl.createWifiController(address, port).isAvailable();
     }
     
     /**

@@ -16,12 +16,13 @@ import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.WindowManager;
 import android.widget.Button;
+import android.content.SharedPreferences;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.volcano.screen.R;
-import com.volcano.screen.display.ImageCastingController;
+// ImageCastingController is in the same package
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -63,6 +64,8 @@ public class ImageDisplayActivity extends Activity {
     private byte[] currentImageBytes = null;
     
     private int viewWidth, viewHeight;
+    
+    private float originalBrightness = -1f;
     
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -223,6 +226,8 @@ public class ImageDisplayActivity extends Activity {
         super.onResume();
         isPolling = true;
         pollHandler.post(pollRunnable);
+        
+        restoreBrightness();
     }
     
     @Override
@@ -230,6 +235,18 @@ public class ImageDisplayActivity extends Activity {
         super.onPause();
         isPolling = false;
         pollHandler.removeCallbacks(pollRunnable);
+    }
+    
+    private void restoreBrightness() {
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        if (originalBrightness < 0) {
+            originalBrightness = params.screenBrightness;
+            if (originalBrightness < 0) {
+                originalBrightness = 1.0f;
+            }
+        }
+        params.screenBrightness = 1.0f;
+        getWindow().setAttributes(params);
     }
     
     @Override

@@ -69,7 +69,7 @@ public class BrightnessController implements SensorEventListener {
     }
 
     public boolean isEnabled() {
-        return prefs.getBoolean(PREF_ENABLED, false);
+        return prefs.getBoolean(PREF_ENABLED, true);
     }
 
     public void setEnabled(boolean enabled) {

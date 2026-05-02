@@ -22,7 +22,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 SERVER_PORT = 8765
 SERVER_URL = f"localhost:{SERVER_PORT}"
-SERVER_SCRIPT = Path(__file__).parent.parent / "usb_display_control.py"
+SERVER_SCRIPT = Path(__file__).parent.parent / "core" / "usb_display_control.py"
 LOG_FILE = Path(__file__).parent.parent / "server.log"
 
 ICON_SIZE = (64, 64)

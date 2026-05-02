@@ -18,14 +18,15 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
-import com.volcano.screen.settings.SettingsActivity;
+import com.volcano.screen.ui.SettingsActivity;
 import com.volcano.screen.ui.LogActivity;
 import com.volcano.screen.imagecast.ImageDisplayActivity;
 import com.volcano.screen.display.DisplayController;
 import com.volcano.screen.display.DisplayManager;
-import com.volcano.screen.display.ImageCastingController;
+import com.volcano.screen.imagecast.ImageCastingController;
 import com.volcano.screen.display.BrightnessController;
 import com.volcano.screen.miio.MiioDevice;
+import android.view.WindowManager;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -89,6 +90,8 @@ public class MainActivity extends AppCompatActivity {
     private static final String LAMP_TOKEN = "f35a3dadd842eaf04e52f4e0781367b9";
     
     private static final long STATUS_UPDATE_INTERVAL = 10000;
+    
+    private float originalBrightness = -1f;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -101,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onBrightnessChanged(float lux, int brightnessPercent) {
                 runOnUiThread(() -> {
-                    brightnessText.setText("亮度: " + brightnessPercent + "%");
+                    brightnessText.setText("主机亮度: " + brightnessPercent + "%");
                     luxText.setText(String.format("光照: %.0f lux", lux));
                 });
             }
@@ -243,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
             if (brightnessEnabled && brightnessController.isSensorAvailable()) {
                 brightnessContainer.setVisibility(View.VISIBLE);
                 switchAutoBrightness.setChecked(brightnessController.isEnabled());
+                brightnessController.start();
             } else {
                 brightnessContainer.setVisibility(View.GONE);
             }
@@ -599,6 +603,39 @@ public class MainActivity extends AppCompatActivity {
             brightnessController.start();
         }
         imageDisplayActivityOpen = false;
+        
+        applyHomeBrightness();
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        restoreBrightness();
+    }
+    
+    private void applyHomeBrightness() {
+        SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
+        int homeBrightnessPercent = prefs.getInt("home_brightness", 50);
+        
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        if (originalBrightness < 0) {
+            originalBrightness = params.screenBrightness;
+            if (originalBrightness < 0) {
+                originalBrightness = 0.5f;
+            }
+        }
+        
+        float brightness = homeBrightnessPercent / 100f;
+        params.screenBrightness = brightness;
+        getWindow().setAttributes(params);
+    }
+    
+    private void restoreBrightness() {
+        if (originalBrightness >= 0) {
+            WindowManager.LayoutParams params = getWindow().getAttributes();
+            params.screenBrightness = originalBrightness;
+            getWindow().setAttributes(params);
+        }
     }
 
     @Override

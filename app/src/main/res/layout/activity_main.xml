@@ -151,15 +151,6 @@
                 android:layout_marginEnd="8dp"/>
 
             <TextView
-                android:id="@+id/brightness_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="亮度: --"
-                android:textSize="16sp"
-                android:textColor="@android:color/white"
-                android:layout_marginEnd="12dp"/>
-
-            <TextView
                 android:id="@+id/lux_text"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
@@ -172,11 +163,20 @@
                 android:id="@+id/switch_auto_brightness"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="自动"
+                android:text="联动"
                 android:textSize="14sp"
                 android:textColor="@android:color/white"
-                android:checked="false"
+                android:checked="true"
                 android:buttonTint="@android:color/white"/>
+
+            <TextView
+                android:id="@+id/brightness_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="主机亮度: --%"
+                android:textSize="16sp"
+                android:textColor="@android:color/white"
+                android:layout_marginStart="12dp"/>
 
         </LinearLayout>
 

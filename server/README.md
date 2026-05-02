@@ -2,22 +2,34 @@
 
 本目录包含所有 PC 服务器端的代码和脚本。
 
-## 文件说明
+## 目录结构
 
-### 核心服务器
-
-| 文件名 | 说明 | 用途 | 状态 |
-|--------|------|------|------|
-| `usb_display_control.py` | 主服务器 | HTTP 服务器 + 显示器控制 | ✅ 主要使用 |
-| `windows_display_server.py` | 显示服务 | Windows 显示器状态检测（WiFi 备用） | ⚠️ 备用方案 |
-| `adb_display_server.py` | ADB 服务 | ADB 设备监听和管理（简化版） | ⚠️ 备用方案 |
-| `adb_listener.py` | ADB 监听器 | ADB 事件监听 | ⚠️ 备用方案 |
-
-### 启动脚本
-
-| 文件名 | 说明 | 用途 |
-|--------|------|------|
-| `start_usb_display.bat` | 启动脚本 | 一键启动 USB 服务器 |
+```
+server/
+├── core/                       # 核心服务
+│   ├── usb_display_control.py  # 主服务器（HTTP API + 显示器控制 + 图片投放）
+│   └── windows_display_server.py # Windows 显示器控制（Flask 备用方案）
+├── display/                    # 显示器相关
+│   ├── get_displays.ps1        # 获取显示器信息
+│   └── brightness_control.ps1  # 亮度控制脚本
+├── imagecast/                  # 图片投放工具
+│   ├── image_uploader.py       # 图片上传处理
+│   ├── upload_real_image.py    # 上传真实图片
+│   ├── upload_test_image.py    # 上传测试图片
+│   ├── demo_image_casting.py   # 演示脚本
+│   └── demo_simple.py          # 简单演示
+├── tray/                       # 系统托盘服务
+│   └── tray_service.py         # 系统托盘控制
+├── tools/                      # 工具脚本
+│   ├── setup_adb.py            # ADB 端口转发设置
+│   ├── adb_display_server.py   # ADB 显示服务器
+│   └── adb_listener.py         # ADB 事件监听器
+├── scripts/                    # 启动脚本
+│   └── start_usb_display.bat   # Windows 启动脚本
+├── static/                     # 静态资源
+│   └── test_cast.jpg           # 测试图片
+└── README.md                   # 本文档
+```
 
 ## 快速开始
 
@@ -25,14 +37,21 @@
 
 ```bash
 cd server
-start_usb_display.bat
+scripts\start_usb_display.bat
 ```
 
 ### 方式 2: 手动启动
 
 ```bash
 cd server
-python usb_display_control.py
+python core/usb_display_control.py
+```
+
+### 方式 3: 使用系统托盘
+
+```bash
+cd server
+python tray/tray_service.py
 ```
 
 ## 服务器功能
@@ -41,48 +60,74 @@ python usb_display_control.py
 
 **端口**: 8765
 
-**API 端点**:
+#### 显示器控制 API
 
-#### GET /status
-获取当前显示器状态
+| API 路径 | 方法 | 功能描述 |
+|---------|------|---------|
+| `/status` | GET | 获取当前显示器状态 |
+| `/` | POST | 切换显示器模式 |
 
 ```bash
+# 获取状态
 curl http://localhost:8765/status
+
+# 切换模式
+curl -X POST http://localhost:8765/ -H "Content-Type: application/json" -d '{"command": "extend"}'
 ```
 
-**响应示例**:
-```json
-{
-  "status": "ok",
-  "mode": 1,
-  "mode_name": "internal",
-  "server": "running",
-  "realtime": true
-}
-```
+#### 图片投放 API
 
-#### POST /
-切换显示器模式
+| API 路径 | 方法 | 功能描述 |
+|---------|------|---------|
+| `/image/status` | GET | 获取当前图片状态 |
+| `/image/data` | GET | 获取图片二进制数据 |
+| `/image/upload` | POST | 上传图片文件 |
+| `/image/cast` | POST/GET | 投放指定路径图片 |
+| `/image/clear` | POST | 清除图片并关闭窗口 |
+| `/image/scale` | POST | 设置缩放比例 |
+| `/image/zoom-in` | POST | 放大图片 |
+| `/image/zoom-out` | POST | 缩小图片 |
+| `/image/zoom-reset` | POST | 重置缩放 |
+| `/image/poll` | GET | 轮询更新 |
+| `/image/ack-popup` | POST | 确认自动弹窗 |
+| `/image/ack-close` | POST | 确认关闭窗口 |
+| `/image/list` | GET | 列出目录中的图片 |
 
 ```bash
-curl -X POST http://localhost:8765/ \
-  -H "Content-Type: application/json" \
-  -d '{"command": "extend"}'
+# 投放图片
+curl "http://localhost:8765/image/cast?file=C:/Users/photo.jpg"
+
+# 获取状态
+curl http://localhost:8765/image/status
+
+# 清除图片
+curl -X POST http://localhost:8765/image/clear
+
+# 缩放
+curl -X POST http://localhost:8765/image/scale -H "Content-Type: application/json" -d '{"scale": 1.5}'
+curl -X POST http://localhost:8765/image/zoom-in
+curl -X POST http://localhost:8765/image/zoom-out
 ```
 
-**请求参数**:
-- `command`: 显示模式
-  - `internal` - 仅第一屏
-  - `external` - 仅第二屏
-  - `extend` - 扩展模式
-  - `clone` - 复制模式
+#### 其他 API
 
-**响应示例**:
-```json
-{
-  "success": true,
-  "message": "[OK] Display switched to: extend"
-}
+| API 路径 | 方法 | 功能描述 |
+|---------|------|---------|
+| `/brightness` | POST | 亮度控制 |
+| `/ping` | GET | 健康检查 |
+| `/download` | GET | 下载速度测试 |
+| `/upload` | POST | 上传速度测试 |
+| `/api` | GET | API 文档 |
+
+```bash
+# 亮度控制
+curl -X POST http://localhost:8765/brightness -H "Content-Type: application/json" -d '{"brightness": 50}'
+
+# 健康检查
+curl http://localhost:8765/ping
+
+# 速度测试
+curl http://localhost:8765/download -o /dev/null
 ```
 
 ### 2. 显示器状态检测
@@ -113,12 +158,20 @@ def get_current_display_mode():
 **自动功能**:
 - 检测 ADB 设备连接
 - 设置 ADB reverse 端口转发
-- 监听设备断开事件
-- 自动重连机制
+- USB 断开后自动重连（后台监控线程，每 3 秒检查）
+- reverse 丢失后自动重建
 
 **ADB reverse 命令**:
 ```bash
 adb reverse tcp:8765 tcp:8765
+```
+
+### 4. 亮度控制
+
+通过 PowerShell 调用 Windows Gamma Ramp API 控制亮度：
+
+```bash
+powershell -ExecutionPolicy Bypass -File display/brightness_control.ps1 -Brightness 50
 ```
 
 ## 依赖要求
@@ -126,7 +179,8 @@ adb reverse tcp:8765 tcp:8765
 ### Python 环境
 
 - Python 3.8+
-- 无需额外 pip 包（使用标准库）
+- 标准库：`http.server`, `json`, `subprocess`, `threading`
+- 系统托盘（可选）：`pip install pystray Pillow`
 
 ### 系统要求
 
@@ -134,85 +188,13 @@ adb reverse tcp:8765 tcp:8765
 - 支持多显示器
 - Android SDK Platform Tools (ADB)
 
-### 可选依赖
-
-如需更高级的功能，可以安装：
-
-```bash
-pip install -r requirements.txt
-```
-
-## 技术细节
-
-### 显示器切换实现
-
-调用 Windows 系统命令：
-
-```python
-import subprocess
-
-def switch_display(mode):
-    cmd_map = {
-        'internal': '/internal',
-        'external': '/external',
-        'extend': '/extend',
-        'clone': '/clone'
-    }
-    
-    cmd = f"DisplaySwitch.exe {cmd_map[mode]}"
-    subprocess.run(cmd, shell=True)
-    time.sleep(5)  # 等待切换完成
-```
-
-### 实时状态检测
-
-使用 PowerShell 脚本：
-
-```powershell
-Add-Type -AssemblyName System.Windows.Forms
-$screens = [System.Windows.Forms.Screen]::AllScreens
-$count = $screens.Count
-$primary = $screens | Where-Object { $_.Primary }
-
-Write-Host "COUNT:$count"
-Write-Host "PRIMARY:$($primary -ne $null)"
-```
-
-### HTTP 服务器实现
-
-使用 Python 标准库：
-
-```python
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
-class DisplayHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        if self.path == '/status':
-            mode = get_current_display_mode()
-            response = {'status': 'ok', 'mode': mode}
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(json.dumps(response).encode())
-    
-    def do_POST(self):
-        content_length = int(self.headers['Content-Length'])
-        post_data = self.rfile.read(content_length)
-        data = json.loads(post_data.decode('utf-8'))
-        
-        command = data.get('command')
-        success, message = switch_display(command)
-        
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(json.dumps({'success': success}).encode())
-```
-
 ## 日志和调试
 
 ### 查看服务器日志
 
 服务器运行时会输出：
 - ADB 设备检测信息
+- ADB Monitor 状态变化
 - HTTP 请求日志
 - 显示器状态变化
 - PowerShell 检测结果
@@ -221,62 +203,34 @@ class DisplayHandler(BaseHTTPRequestHandler):
 
 **Q: 端口 8765 被占用**
 ```bash
-# 查找占用端口的进程
 netstat -ano | findstr :8765
-# 终止进程
 taskkill /F /PID <进程 ID>
 ```
 
 **Q: ADB 设备未识别**
 ```bash
-# 检查 ADB 设备
 adb devices
-# 重启 ADB 服务器
 adb kill-server
 adb start-server
 ```
+
+**Q: USB 重连后无法恢复**
+- 服务器会自动检测并重建 ADB reverse
+- 检查 ADB Monitor 日志输出
+- 手动执行：`adb reverse tcp:8765 tcp:8765`
 
 **Q: 显示器状态检测失败**
 - 确保显示器驱动正常
 - 检查 Windows 显示设置
 - 更新显卡驱动
 
-## 开发说明
-
-### 添加新 API
-
-1. 在 `DisplayHandler` 类中添加新的处理方法
-2. 实现业务逻辑
-3. 返回 JSON 响应
-
-### 修改显示模式
-
-如需支持更多模式，修改：
-- `mode_map` 字典（添加新模式）
-- `switch_display()` 函数（实现切换逻辑）
-- `get_current_display_mode()` 函数（支持新模式检测）
-
 ## 安全注意事项
 
-1. **本地访问**: 服务器仅监听 localhost，外部无法访问
+1. **网络访问**: 服务器监听 `0.0.0.0:8765`，支持 WiFi 连接
 2. **无认证**: 当前版本无需认证（仅本地使用）
 3. **权限**: 需要普通用户权限即可运行
 
-## 性能优化
-
-### 已实施优化
-
-- 实时状态检测（无缓存）
-- 切换后等待 5 秒（确保完成）
-- ADB 自动重连机制
-
-### 未来优化
-
-- 连接池复用
-- 增量状态更新
-- WebSocket 支持
-
 ---
 
-**最后更新**: 2026-04-27  
-**版本**: v1.1.0
+**最后更新**: 2026-05-03  
+**版本**: v1.4.0

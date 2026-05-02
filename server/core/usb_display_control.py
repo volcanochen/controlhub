@@ -170,7 +170,7 @@ def set_brightness(brightness):
             return False, f"Invalid brightness value: {brightness} (must be 0-100)"
         
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        ps_script = os.path.join(script_dir, 'brightness_control.ps1')
+        ps_script = os.path.join(script_dir, '..', 'display', 'brightness_control.ps1')
         
         if not os.path.exists(ps_script):
             print(f"Warning: {ps_script} not found")
@@ -222,7 +222,7 @@ def get_current_display_mode():
         import re
         
         script_dir = os.path.dirname(os.path.abspath(__file__))
-        ps_script = os.path.join(script_dir, 'get_displays.ps1')
+        ps_script = os.path.join(script_dir, '..', 'display', 'get_displays.ps1')
         
         if not os.path.exists(ps_script):
             print(f"Warning: {ps_script} not found, using fallback")
@@ -911,20 +911,93 @@ def setup_adb_reverse():
         print(f"[ERROR] Setup failed: {e}")
         return False
 
+def has_adb_device():
+    """Check if ADB device is connected"""
+    adb_cmd = find_adb_path()
+    if not adb_cmd:
+        return False
+    
+    try:
+        result = subprocess.run([adb_cmd, "devices"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            # Check if any device is connected (excluding "List of devices attached")
+            lines = output.split('\n')
+            for line in lines[1:]:  # Skip first line
+                line = line.strip()
+                if line and '\t' in line and 'device' in line.lower():
+                    return True
+        return False
+    except Exception:
+        return False
+
+def adb_reverse_is_active():
+    """Check if ADB reverse is already active"""
+    adb_cmd = find_adb_path()
+    if not adb_cmd:
+        return False
+    
+    try:
+        result = subprocess.run([adb_cmd, "reverse", "--list"], capture_output=True, text=True, timeout=5)
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            return f"tcp:{PORT}" in output
+        return False
+    except Exception:
+        return False
+
+def adb_monitor_thread():
+    """Background thread to monitor and maintain ADB connection"""
+    print("[ADB Monitor] Starting ADB connection monitor...")
+    adb_connected = False
+    
+    while True:
+        try:
+            # Check if device is connected
+            device_available = has_adb_device()
+            
+            if device_available and not adb_connected:
+                # Device just connected, setup reverse
+                print("[ADB Monitor] USB device detected, setting up reverse...")
+                if setup_adb_reverse():
+                    adb_connected = True
+                    print("[ADB Monitor] USB connection established")
+                else:
+                    print("[ADB Monitor] Failed to setup reverse, will retry")
+            
+            elif not device_available and adb_connected:
+                # Device disconnected
+                adb_connected = False
+                print("[ADB Monitor] USB device disconnected")
+            
+            elif device_available and adb_connected:
+                # Device still connected, check if reverse is still active
+                if not adb_reverse_is_active():
+                    print("[ADB Monitor] Reverse lost, re-establishing...")
+                    if setup_adb_reverse():
+                        print("[ADB Monitor] Reverse re-established")
+                    else:
+                        adb_connected = False
+            
+            # Wait before next check
+            time.sleep(3)
+            
+        except Exception as e:
+            print(f"[ADB Monitor] Error: {e}")
+            time.sleep(5)
+
 def main():
     print("=" * 60)
     print("Display Control Server (USB + WiFi)")
     print("=" * 60)
     print()
     
-    # Try to setup ADB reverse (optional, for USB connection)
-    try:
-        if setup_adb_reverse():
-            print("[OK] USB connection ready")
-        else:
-            print("[INFO] USB connection not available, but WiFi may still work")
-    except Exception as e:
-        print(f"[INFO] USB setup skipped: {e}")
+    # Start ADB monitor thread to handle USB reconnect
+    monitor_thread = threading.Thread(target=adb_monitor_thread, daemon=True)
+    monitor_thread.start()
+    
+    # Wait briefly for initial setup
+    time.sleep(1)
     
     print()
     print("=" * 60)

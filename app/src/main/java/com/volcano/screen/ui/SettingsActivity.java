@@ -1,7 +1,8 @@
-package com.volcano.screen.settings;
+package com.volcano.screen.ui;
 
 import com.volcano.screen.R;
 import com.volcano.screen.display.DisplayManager;
+import android.widget.SeekBar;
 import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -9,8 +10,11 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Switch;
@@ -27,6 +31,12 @@ public class SettingsActivity extends AppCompatActivity {
     
     private Switch switchLamp;
     private Switch switchDisplay;
+    private Switch switchBrightness;
+    private SeekBar homeBrightnessSeek;
+    private TextView homeBrightnessValue;
+    private LinearLayout brightnessSettingsDetail;
+    private EditText minBrightnessEdit;
+    private EditText maxBrightnessEdit;
     private Button viewLogButton;
     private Button aboutButton;
     private Button backButton;
@@ -61,6 +71,12 @@ public class SettingsActivity extends AppCompatActivity {
     private void initViews() {
         switchLamp = findViewById(R.id.switch_lamp);
         switchDisplay = findViewById(R.id.switch_display);
+        switchBrightness = findViewById(R.id.switch_brightness);
+        homeBrightnessSeek = findViewById(R.id.home_brightness_seek);
+        homeBrightnessValue = findViewById(R.id.home_brightness_value);
+        brightnessSettingsDetail = findViewById(R.id.brightness_settings_detail);
+        minBrightnessEdit = findViewById(R.id.min_brightness_edit);
+        maxBrightnessEdit = findViewById(R.id.max_brightness_edit);
         viewLogButton = findViewById(R.id.view_log_button);
         aboutButton = findViewById(R.id.about_button);
         backButton = findViewById(R.id.back_button);
@@ -80,6 +96,20 @@ public class SettingsActivity extends AppCompatActivity {
         
         boolean displayEnabled = prefs.getBoolean("display_enabled", true);
         switchDisplay.setChecked(displayEnabled);
+        
+        boolean brightnessEnabled = prefs.getBoolean("brightness_enabled", true);
+        switchBrightness.setChecked(brightnessEnabled);
+        brightnessSettingsDetail.setVisibility(brightnessEnabled ? View.VISIBLE : View.GONE);
+        
+        int homeBrightness = prefs.getInt("home_brightness", 50);
+        homeBrightnessSeek.setProgress(homeBrightness);
+        homeBrightnessValue.setText(homeBrightness + "%");
+        
+        int minBrightness = prefs.getInt("min_brightness", 10);
+        minBrightnessEdit.setText(String.valueOf(minBrightness));
+        
+        int maxBrightness = prefs.getInt("max_brightness", 100);
+        maxBrightnessEdit.setText(String.valueOf(maxBrightness));
         
         int preferredMode = displayManager.getPreferredMode();
         switch (preferredMode) {
@@ -127,8 +157,36 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.LENGTH_SHORT).show();
         });
         
+        switchBrightness.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("brightness_enabled", isChecked).apply();
+            brightnessSettingsDetail.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+            Toast.makeText(this, 
+                isChecked ? "亮度控制已启用" : "亮度控制已禁用", 
+                Toast.LENGTH_SHORT).show();
+        });
+        
+        homeBrightnessSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                homeBrightnessValue.setText(progress + "%");
+                if (fromUser) {
+                    applyBrightness(progress);
+                }
+            }
+            
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+            
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int progress = seekBar.getProgress();
+                prefs.edit().putInt("home_brightness", progress).apply();
+            }
+        });
+        
         backButton.setOnClickListener(v -> {
-            saveWifiSettings();
+            saveSettings();
             finish();
         });
         
@@ -153,6 +211,36 @@ public class SettingsActivity extends AppCompatActivity {
                 Toast.makeText(this, "已设置为仅 WiFi", Toast.LENGTH_SHORT).show();
             }
         });
+    }
+    
+    private void saveSettings() {
+        saveWifiSettings();
+        
+        try {
+            String minStr = minBrightnessEdit.getText().toString().trim();
+            if (!minStr.isEmpty()) {
+                int minBrightness = Integer.parseInt(minStr);
+                prefs.edit().putInt("min_brightness", Math.max(0, Math.min(100, minBrightness))).apply();
+            }
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        }
+        
+        try {
+            String maxStr = maxBrightnessEdit.getText().toString().trim();
+            if (!maxStr.isEmpty()) {
+                int maxBrightness = Integer.parseInt(maxStr);
+                prefs.edit().putInt("max_brightness", Math.max(0, Math.min(100, maxBrightness))).apply();
+            }
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        }
+    }
+    
+    private void applyBrightness(int brightnessPercent) {
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        params.screenBrightness = brightnessPercent / 100f;
+        getWindow().setAttributes(params);
     }
     
     private void saveWifiSettings() {
@@ -232,8 +320,13 @@ public class SettingsActivity extends AppCompatActivity {
         resultText.setText("正在初始化测试...\n\n请稍候...");
         dialog.show();
         
+        String usbUrl = "http://localhost:8765";
+        String wifiAddress = displayManager.getWifiAddress();
+        int wifiPort = displayManager.getWifiPort();
+        String wifiUrl = "http://" + wifiAddress + ":" + wifiPort;
+        
         speedTester = new NetworkSpeedTester(resultText);
-        speedTester.startFullTest(new NetworkSpeedTester.SpeedTestCallback() {
+        speedTester.startDualTest(usbUrl, wifiUrl, new NetworkSpeedTester.SpeedTestCallback() {
             @Override
             public void onPingResult(double avgLatency, double minLatency, double maxLatency) {
             }
@@ -262,6 +355,7 @@ public class SettingsActivity extends AppCompatActivity {
         prefs.edit()
             .putBoolean("lamp_enabled", switchLamp.isChecked())
             .putBoolean("display_enabled", switchDisplay.isChecked())
+            .putBoolean("brightness_enabled", switchBrightness.isChecked())
             .apply();
         displayManager.close();
         if (executorService != null) {

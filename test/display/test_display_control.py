@@ -228,7 +228,7 @@ def test_02_display_detection():
         return False
 
     print_test("2.3 - PowerShell 检测脚本执行")
-    ps_script = os.path.join(get_server_dir(), 'get_displays.ps1')
+    ps_script = os.path.join(get_server_dir(), 'display', 'get_displays.ps1')
     ret, out, err = run_command(['powershell', '-ExecutionPolicy', 'Bypass', '-File', ps_script],
         timeout=15)
     if ret == 0 and "ACTIVE_COUNT" in out:
@@ -360,7 +360,7 @@ def test_05_error_handling():
         print_info2("5.2 - 非法 HTTP 方法处理", f"异常：{e}")
 
     print_test("5.3 - PowerShell 脚本超时处理")
-    ps_script = os.path.join(get_server_dir(), 'get_displays.ps1')
+    ps_script = os.path.join(get_server_dir(), 'display', 'get_displays.ps1')
     ret, out, err = run_command(['powershell', '-ExecutionPolicy', 'Bypass', '-File', ps_script],
         timeout=15)
     if ret == 0:
