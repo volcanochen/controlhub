@@ -14,7 +14,6 @@
         android:descendantFocusability="beforeDescendants"
         android:focusableInTouchMode="true">
 
-        <!-- Title -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -24,7 +23,6 @@
             android:textStyle="bold"
             android:layout_marginBottom="16dp"/>
 
-        <!-- Card 1: Communication Settings -->
         <LinearLayout
             android:id="@+id/card_communication"
             android:layout_width="match_parent"
@@ -135,7 +133,6 @@
                 android:paddingEnd="12dp"/>
         </LinearLayout>
 
-        <!-- Card 2: Network Test -->
         <LinearLayout
             android:id="@+id/card_network"
             android:layout_width="match_parent"
@@ -180,7 +177,6 @@
                 android:backgroundTint="#2196F3"/>
         </LinearLayout>
 
-        <!-- Card 3: Feature Settings -->
         <LinearLayout
             android:id="@+id/card_features"
             android:layout_width="match_parent"
@@ -251,85 +247,8 @@
                     android:thumbTint="#4CAF50"
                     android:trackTint="#81C784"/>
             </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="48dp"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginTop="8dp">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="亮度控制（光传感器）"
-                    android:textSize="14sp"
-                    android:textColor="@android:color/white"/>
-
-                <Switch
-                    android:id="@+id/switch_brightness"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:checked="true"
-                    android:thumbTint="#4CAF50"
-                    android:trackTint="#81C784"/>
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/brightness_settings_detail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:visibility="gone"
-                android:paddingTop="8dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="最低亮度 (%)"
-                    android:textSize="14sp"
-                    android:textColor="#AAAAAA"
-                    android:layout_marginBottom="4dp"/>
-
-                <EditText
-                    android:id="@+id/min_brightness_edit"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:inputType="number"
-                    android:textColor="@android:color/white"
-                    android:textColorHint="#888888"
-                    android:hint="默认: 10"
-                    android:textSize="14sp"
-                    android:background="@drawable/edit_bg"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"
-                    android:layout_marginBottom="8dp"/>
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="最高亮度 (%)"
-                    android:textSize="14sp"
-                    android:textColor="#AAAAAA"
-                    android:layout_marginBottom="4dp"/>
-
-                <EditText
-                    android:id="@+id/max_brightness_edit"
-                    android:layout_width="match_parent"
-                    android:layout_height="44dp"
-                    android:inputType="number"
-                    android:textColor="@android:color/white"
-                    android:textColorHint="#888888"
-                    android:hint="默认: 100"
-                    android:textSize="14sp"
-                    android:background="@drawable/edit_bg"
-                    android:paddingStart="12dp"
-                    android:paddingEnd="12dp"/>
-            </LinearLayout>
         </LinearLayout>
 
-        <!-- Card 4: Log -->
         <LinearLayout
             android:id="@+id/card_log"
             android:layout_width="match_parent"
@@ -364,7 +283,6 @@
                 android:backgroundTint="#2196F3"/>
         </LinearLayout>
 
-        <!-- Card 5: About -->
         <LinearLayout
             android:id="@+id/card_about"
             android:layout_width="match_parent"
@@ -399,7 +317,6 @@
                 android:backgroundTint="#9C27B0"/>
         </LinearLayout>
 
-        <!-- Back Button -->
         <Button
             android:id="@+id/back_button"
             android:layout_width="match_parent"

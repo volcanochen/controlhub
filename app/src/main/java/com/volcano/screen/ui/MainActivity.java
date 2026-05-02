@@ -20,8 +20,10 @@ import android.widget.TextView;
 import android.widget.Toast;
 import com.volcano.screen.ui.SettingsActivity;
 import com.volcano.screen.ui.LogActivity;
+import com.volcano.screen.imagecast.ImageDisplayActivity;
 import com.volcano.screen.display.DisplayController;
 import com.volcano.screen.display.DisplayManager;
+import com.volcano.screen.display.ImageCastingController;
 import com.volcano.screen.display.BrightnessController;
 import com.volcano.screen.miio.MiioDevice;
 
@@ -43,6 +45,7 @@ public class MainActivity extends AppCompatActivity {
     private CheckBox switchMonitor1, switchMonitor2;
     private Button statusButton;
     private Button settingsButton;
+    private Button imageDisplayButton;
     private LinearLayout contentContainer;
     private Button viewLogButton;
     private TextView debugInfo;
@@ -52,6 +55,12 @@ public class MainActivity extends AppCompatActivity {
     private Runnable statusUpdateRunnable;
     private ExecutorService executorService;
     
+    private Handler autoPopupHandler;
+    private Runnable autoPopupRunnable;
+    private ImageCastingController imageCastingController;
+    private boolean imageDisplayActivityOpen = false;
+    private static final long AUTO_POPUP_INTERVAL = 2000;
+    
     private DisplayManager displayManager;
     private BrightnessController brightnessController;
     
@@ -60,7 +69,6 @@ public class MainActivity extends AppCompatActivity {
     private TextView luxText;
     private CheckBox switchAutoBrightness;
     
-    // 标志位：防止 CheckBox 更新时触发监听器
     private boolean isUpdatingCheckBoxes = false;
 
     private SimpleDateFormat timeFormat;
@@ -70,20 +78,17 @@ public class MainActivity extends AppCompatActivity {
     private long lastCpuTime = 0;
     private long lastAppTime = 0;
     
-    // OLED 防烧屏位移
     private int burnInOffsetX = 0;
     private int burnInOffsetY = 0;
-    private int burnInDirection = 0; // 0:右下，1:左上，2:右上，3:左下
+    private int burnInDirection = 0;
     private long lastBurnInUpdate = 0;
-    private static final int BURN_IN_MAX_OFFSET = 10; // 最大位移像素
-    private static final long BURN_IN_UPDATE_INTERVAL = 30000; // 每 30 秒位移一次
+    private static final int BURN_IN_MAX_OFFSET = 10;
+    private static final long BURN_IN_UPDATE_INTERVAL = 30000;
 
-    // 在这里配置你的台灯 IP 和 Token
-    private static final String LAMP_IP = "192.168.50.229";  // 改成你的台灯 IP
-    private static final String LAMP_TOKEN = "f35a3dadd842eaf04e52f4e0781367b9";  // 改成你的 Token
+    private static final String LAMP_IP = "192.168.50.229";
+    private static final String LAMP_TOKEN = "f35a3dadd842eaf04e52f4e0781367b9";
     
-    // 显示器状态更新间隔（毫秒）
-    private static final long STATUS_UPDATE_INTERVAL = 10000; // 10 秒
+    private static final long STATUS_UPDATE_INTERVAL = 10000;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +115,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // 初始化日期时间格式（使用 strings.xml 中的统一定义）
         String timeFormatStr = getString(R.string.time_format);
         String dateFormatStr = getString(R.string.date_format);
         String dayFormatStr = getString(R.string.day_format);
@@ -129,6 +133,7 @@ public class MainActivity extends AppCompatActivity {
         switchMonitor2 = findViewById(R.id.switch_monitor2);
         statusButton = findViewById(R.id.status_button);
         settingsButton = findViewById(R.id.settings_button);
+        imageDisplayButton = findViewById(R.id.image_display_btn);
         viewLogButton = findViewById(R.id.view_log_button);
         debugInfo = findViewById(R.id.debug_info);
         contentContainer = findViewById(R.id.content_container);
@@ -138,13 +143,16 @@ public class MainActivity extends AppCompatActivity {
         luxText = findViewById(R.id.lux_text);
         switchAutoBrightness = findViewById(R.id.switch_auto_brightness);
         
-        // Set button click listeners
         settingsButton.setOnClickListener(v -> {
             Intent intent = new Intent(MainActivity.this, SettingsActivity.class);
             startActivity(intent);
         });
+        
+        imageDisplayButton.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, ImageDisplayActivity.class);
+            startActivity(intent);
+        });
 
-        // 状态按钮点击事件 - 手动检查服务器
         statusButton.setOnClickListener(v -> {
             debugInfo.setText("调试信息:\n正在检查服务器...");
             if (viewLogButton.getVisibility() == View.GONE) {
@@ -153,7 +161,6 @@ public class MainActivity extends AppCompatActivity {
             checkServerManually();
         });
 
-        // 查看日志按钮点击事件
         viewLogButton.setOnClickListener(v -> {
             if (debugInfo.getVisibility() == View.GONE) {
                 debugInfo.setVisibility(View.VISIBLE);
@@ -162,7 +169,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // CheckBox 监听逻辑 - 显示器切换
         switchMonitor1.setOnCheckedChangeListener((buttonView, isChecked) -> {
             if (!isUpdatingCheckBoxes) {
                 handleMonitorSwitch();
@@ -177,11 +183,12 @@ public class MainActivity extends AppCompatActivity {
 
         executorService = Executors.newSingleThreadExecutor();
         statusHandler = new Handler();
+        autoPopupHandler = new Handler();
+        imageCastingController = new ImageCastingController();
         
-        // 启动状态更新（每 10 秒轮询）
         startStatusUpdate();
+        startAutoPopupPolling();
 
-        // 沉浸式模式
         getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
                 View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
@@ -191,16 +198,11 @@ public class MainActivity extends AppCompatActivity {
                 View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         );
 
-        // 保持屏幕常亮
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 初始化电量监听
         setupBatteryReceiver();
-
-        // 初始化台灯控制按钮
         setupLampControls();
 
-        // 初始化亮度自动控制
         switchAutoBrightness.setOnCheckedChangeListener((buttonView, isChecked) -> {
             brightnessController.setEnabled(isChecked);
             if (isChecked) {
@@ -213,40 +215,30 @@ public class MainActivity extends AppCompatActivity {
         handler = new Handler();
         updateClock();
         
-        // 根据设置检查是否显示台灯控制
         checkFeatureSettings();
     }
 
-    /**
-     * 检查功能设置，隐藏已禁用的功能
-     */
     private void checkFeatureSettings() {
         SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
         boolean lampEnabled = prefs.getBoolean("lamp_enabled", true);
         boolean displayEnabled = prefs.getBoolean("display_enabled", true);
         boolean brightnessEnabled = prefs.getBoolean("brightness_enabled", true);
         
-        // 隐藏/显示台灯控制按钮
         if (btnLampOn != null && btnLampOff != null) {
             int lampVisibility = lampEnabled ? View.VISIBLE : View.GONE;
             btnLampOn.setVisibility(lampVisibility);
             btnLampOff.setVisibility(lampVisibility);
         }
         
-        // 隐藏/显示器控制（包括文字和 checkbox）
         if (switchMonitor1 != null && switchMonitor2 != null) {
             int displayVisibility = displayEnabled ? View.VISIBLE : View.GONE;
-            // 隐藏/显示第一屏（文字 + 复选框）
             View monitor1Layout = (View) switchMonitor1.getParent();
             monitor1Layout.setVisibility(displayVisibility);
-            // 隐藏/显示第二屏（文字 + 复选框）
             View monitor2Layout = (View) switchMonitor2.getParent();
             monitor2Layout.setVisibility(displayVisibility);
-            // 隐藏/显示状态按钮
             statusButton.setVisibility(displayVisibility);
         }
 
-        // 隐藏/显示亮度控制
         if (brightnessContainer != null) {
             if (brightnessEnabled && brightnessController.isSensorAvailable()) {
                 brightnessContainer.setVisibility(View.VISIBLE);
@@ -258,112 +250,54 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupLampControls() {
-        btnLampOn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                controlLamp(true);
-            }
-        });
-
-        btnLampOff.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                controlLamp(false);
-            }
-        });
+        btnLampOn.setOnClickListener(v -> controlLamp(true));
+        btnLampOff.setOnClickListener(v -> controlLamp(false));
     }
 
-    /**
-     * 处理显示器开关切换
-     */
     private void handleMonitorSwitch() {
-        // 如果两个都未选中，强制选中第一个（不能全关）
         if (!switchMonitor1.isChecked() && !switchMonitor2.isChecked()) {
             switchMonitor1.setChecked(true);
         }
-
-        // 执行显示器切换
         setMonitorMode(switchMonitor1.isChecked(), switchMonitor2.isChecked());
     }
 
-    /**
-     * 设置显示器模式
-     */
     private void setMonitorMode(boolean monitor1On, boolean monitor2On) {
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    DisplayController controller = displayManager.getController();
-                    if (monitor1On && !monitor2On) {
-                        // 仅第一屏
-                        controller.setDisplayMode(DisplayManager.MODE_PRIMARY_ONLY);
-                    } else if (!monitor1On && monitor2On) {
-                        // 仅第二屏
-                        controller.setDisplayMode(DisplayManager.MODE_SECONDARY_ONLY);
-                    } else if (monitor1On && monitor2On) {
-                        // 双屏扩展
-                        controller.setDisplayMode(DisplayManager.MODE_EXTENDED);
-                    }
-                    
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(MainActivity.this, "显示器模式已更新 (" + controller.getConnectionType() + ")", Toast.LENGTH_SHORT).show();
-                        }
-                    });
-                } catch (final Exception e) {
-                    e.printStackTrace();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(MainActivity.this, "切换失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
+        executorService.execute(() -> {
+            try {
+                DisplayController controller = displayManager.getController();
+                if (monitor1On && !monitor2On) {
+                    controller.setDisplayMode(DisplayManager.MODE_PRIMARY_ONLY);
+                } else if (!monitor1On && monitor2On) {
+                    controller.setDisplayMode(DisplayManager.MODE_SECONDARY_ONLY);
+                } else if (monitor1On && monitor2On) {
+                    controller.setDisplayMode(DisplayManager.MODE_EXTENDED);
                 }
+                
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "显示器模式已更新 (" + controller.getConnectionType() + ")", Toast.LENGTH_SHORT).show());
+            } catch (final Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "切换失败：" + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
 
-    private void switchMonitor(final int monitorId) {
-        // 此方法已废弃，使用 handleMonitorSwitch 替代
-    }
-
     private void controlLamp(final boolean on) {
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    MiioDevice device = new MiioDevice(LAMP_IP, LAMP_TOKEN);
-                    
-                    if (device.handshake()) {
-                        String result = device.sendCommand("set_power", new Object[]{on ? "on" : "off"});
-                        final String message = on ? "台灯已开启" : "台灯已关闭";
-                        
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();                            }
-                        });
-                    } else {
-                        runOnUiThread(new Runnable() {
-                            @Override
-                            public void run() {
-                                Toast.makeText(MainActivity.this, "连接设备失败", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-                    
-                    device.close();
-                } catch (final Exception e) {
-                    e.printStackTrace();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(MainActivity.this, "控制失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
-                        }
-                    });
+        executorService.execute(() -> {
+            try {
+                MiioDevice device = new MiioDevice(LAMP_IP, LAMP_TOKEN);
+                
+                if (device.handshake()) {
+                    device.sendCommand("set_power", new Object[]{on ? "on" : "off"});
+                    final String message = on ? "台灯已开启" : "台灯已关闭";
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show());
+                } else {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "连接设备失败", Toast.LENGTH_SHORT).show());
                 }
+                
+                device.close();
+            } catch (final Exception e) {
+                e.printStackTrace();
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "控制失败：" + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         });
     }
@@ -398,18 +332,10 @@ public class MainActivity extends AppCompatActivity {
         dateText.setText(dateFormat.format(calendar.getTime()));
         dayText.setText(dayFormat.format(calendar.getTime()));
 
-        // 更新CPU使用率
         updateCpuUsage();
-        
-        // OLED防烧屏位移
         updateBurnInOffset();
 
-        handler.postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                updateClock();
-            }
-        }, 1000);
+        handler.postDelayed(this::updateClock, 1000);
     }
     
     private void updateBurnInOffset() {
@@ -419,22 +345,16 @@ public class MainActivity extends AppCompatActivity {
         }
         lastBurnInUpdate = currentTime;
         
-        // 随机或有规律地改变方向和偏移量
         burnInDirection = (burnInDirection + 1) % 4;
         
-        // 随机生成新的偏移量（在最大范围内）
         java.util.Random random = new java.util.Random();
         burnInOffsetX = random.nextInt(BURN_IN_MAX_OFFSET * 2 + 1) - BURN_IN_MAX_OFFSET;
         burnInOffsetY = random.nextInt(BURN_IN_MAX_OFFSET * 2 + 1) - BURN_IN_MAX_OFFSET;
         
-        // 应用位移
         contentContainer.setTranslationX(burnInOffsetX);
         contentContainer.setTranslationY(burnInOffsetY);
     }
 
-    /**
-     * 启动状态更新循环
-     */
     private void startStatusUpdate() {
         statusUpdateRunnable = new Runnable() {
             @Override
@@ -446,42 +366,69 @@ public class MainActivity extends AppCompatActivity {
         statusHandler.post(statusUpdateRunnable);
     }
     
-    /**
-     * 更新服务器连接状态
-     */
-    private void updateServerStatus() {
-        executorService.execute(new Runnable() {
+    private void startAutoPopupPolling() {
+        autoPopupRunnable = new Runnable() {
             @Override
             public void run() {
-                try {
-                    DisplayController controller = displayManager.getController();
-                    int mode = controller.getCurrentMode();
-                    final String connectionType = controller.getConnectionType();
+                checkAutoPopup();
+                autoPopupHandler.postDelayed(this, AUTO_POPUP_INTERVAL);
+            }
+        };
+        autoPopupHandler.post(autoPopupRunnable);
+    }
+    
+    private void stopAutoPopupPolling() {
+        if (autoPopupHandler != null && autoPopupRunnable != null) {
+            autoPopupHandler.removeCallbacks(autoPopupRunnable);
+        }
+    }
+    
+    private void checkAutoPopup() {
+        if (imageDisplayActivityOpen) {
+            return;
+        }
+        
+        executorService.execute(() -> {
+            try {
+                ImageCastingController.ImageStatus status = imageCastingController.getImageStatus();
+                
+                if (status.hasImage && status.autoPopup) {
+                    imageCastingController.ackAutoPopup();
                     
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            statusButton.setText("Ready (" + connectionType + ")");
-                            statusButton.setSelected(true);
-                            updateCheckBoxesFromMode(mode);
-                        }
-                    });
-                } catch (Exception e) {
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            statusButton.setText("Not Ready");
-                            statusButton.setSelected(false);
+                    runOnUiThread(() -> {
+                        if (!imageDisplayActivityOpen) {
+                            Intent intent = new Intent(MainActivity.this, ImageDisplayActivity.class);
+                            startActivity(intent);
+                            imageDisplayActivityOpen = true;
                         }
                     });
                 }
+            } catch (Exception e) {
             }
         });
     }
     
-    /**
-     * 根据显示器模式更新 CheckBox 状态
-     */
+    private void updateServerStatus() {
+        executorService.execute(() -> {
+            try {
+                DisplayController controller = displayManager.getController();
+                int mode = controller.getCurrentMode();
+                final String connectionType = controller.getConnectionType();
+                
+                runOnUiThread(() -> {
+                    statusButton.setText("Ready (" + connectionType + ")");
+                    statusButton.setSelected(true);
+                    updateCheckBoxesFromMode(mode);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() -> {
+                    statusButton.setText("Not Ready");
+                    statusButton.setSelected(false);
+                });
+            }
+        });
+    }
+    
     private void updateCheckBoxesFromMode(int mode) {
         isUpdatingCheckBoxes = true;
         
@@ -508,62 +455,47 @@ public class MainActivity extends AppCompatActivity {
         isUpdatingCheckBoxes = false;
     }
 
-    /**
-     * 手动检查服务器
-     */
     private void checkServerManually() {
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                StringBuilder debugMsg = new StringBuilder();
-                debugMsg.append("调试信息:\n");
-                debugMsg.append("1. 开始检查服务器...\n");
+        executorService.execute(() -> {
+            StringBuilder debugMsg = new StringBuilder();
+            debugMsg.append("调试信息:\n");
+            debugMsg.append("1. 开始检查服务器...\n");
+            
+            try {
+                debugMsg.append("2. 尝试连接...\n");
+                runOnUiThread(() -> debugInfo.setText(debugMsg.toString()));
                 
-                try {
-                    debugMsg.append("2. 尝试连接...\n");
-                    runOnUiThread(() -> debugInfo.setText(debugMsg.toString()));
-                    
-                    DisplayController controller = displayManager.getController();
-                    int mode = controller.getCurrentMode();
-                    
-                    debugMsg.append("3. 连接成功！(").append(controller.getConnectionType()).append(")\n");
-                    debugMsg.append("4. 服务器返回模式：").append(modeToString(mode)).append("\n");
-                    debugMsg.append("5. 服务器状态：Ready ✓\n");
-                    
-                    final int finalMode = mode;
-                    final String finalConnectionType = controller.getConnectionType();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            debugInfo.setText(debugMsg.toString());
-                            statusButton.setText("Ready (" + finalConnectionType + ")");
-                            statusButton.setSelected(true);
-                            updateCheckBoxesFromMode(finalMode);
-                        }
-                    });
-                    
-                } catch (Exception e) {
-                    debugMsg.append("3. 连接失败！\n");
-                    debugMsg.append("错误：").append(e.getMessage()).append("\n");
-                    debugMsg.append("4. 服务器状态：Not Ready ✗\n");
-                    debugMsg.append("5. 请检查连接设置\n");
-                    
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            debugInfo.setText(debugMsg.toString());
-                            statusButton.setText("Not Ready");
-                            statusButton.setSelected(false);
-                        }
-                    });
-                }
+                DisplayController controller = displayManager.getController();
+                int mode = controller.getCurrentMode();
+                
+                debugMsg.append("3. 连接成功！(").append(controller.getConnectionType()).append(")\n");
+                debugMsg.append("4. 服务器返回模式：").append(modeToString(mode)).append("\n");
+                debugMsg.append("5. 服务器状态：Ready ✓\n");
+                
+                final int finalMode = mode;
+                final String finalConnectionType = controller.getConnectionType();
+                runOnUiThread(() -> {
+                    debugInfo.setText(debugMsg.toString());
+                    statusButton.setText("Ready (" + finalConnectionType + ")");
+                    statusButton.setSelected(true);
+                    updateCheckBoxesFromMode(finalMode);
+                });
+                
+            } catch (Exception e) {
+                debugMsg.append("3. 连接失败！\n");
+                debugMsg.append("错误：").append(e.getMessage()).append("\n");
+                debugMsg.append("4. 服务器状态：Not Ready ✗\n");
+                debugMsg.append("5. 请检查连接设置\n");
+                
+                runOnUiThread(() -> {
+                    debugInfo.setText(debugMsg.toString());
+                    statusButton.setText("Not Ready");
+                    statusButton.setSelected(false);
+                });
             }
         });
     }
     
-    /**
-     * 模式转换为字符串
-     */
     private String modeToString(int mode) {
         switch (mode) {
             case DisplayManager.MODE_PRIMARY_ONLY:
@@ -580,33 +512,25 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateCpuUsage() {
-        executorService.execute(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    final StringBuilder sb = new StringBuilder();
-                    
-                    Runtime runtime = Runtime.getRuntime();
-                    long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
-                    long maxMemory = runtime.maxMemory() / 1024 / 1024;
-                    
-                    sb.append("内存: ").append(usedMemory).append("/").append(maxMemory).append("MB");
-                    
-                    double cpuUsage = tryGetCpuUsage();
-                    if (cpuUsage >= 0) {
-                        sb.append(" | CPU: ").append(String.format(Locale.getDefault(), "%.1f%%", cpuUsage));
-                    }
-                    
-                    final String result = sb.toString();
-                    runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            cpuText.setText(result);
-                        }
-                    });
-                } catch (Exception e) {
-                    e.printStackTrace();
+        executorService.execute(() -> {
+            try {
+                final StringBuilder sb = new StringBuilder();
+                
+                Runtime runtime = Runtime.getRuntime();
+                long usedMemory = (runtime.totalMemory() - runtime.freeMemory()) / 1024 / 1024;
+                long maxMemory = runtime.maxMemory() / 1024 / 1024;
+                
+                sb.append("内存: ").append(usedMemory).append("/").append(maxMemory).append("MB");
+                
+                double cpuUsage = tryGetCpuUsage();
+                if (cpuUsage >= 0) {
+                    sb.append(" | CPU: ").append(String.format(Locale.getDefault(), "%.1f%%", cpuUsage));
                 }
+                
+                final String result = sb.toString();
+                runOnUiThread(() -> cpuText.setText(result));
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         });
     }
@@ -654,7 +578,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         } catch (Exception e) {
-            // 忽略错误
         }
         return -1;
     }
@@ -675,6 +598,7 @@ public class MainActivity extends AppCompatActivity {
         if (brightnessController.isEnabled() && brightnessController.isSensorAvailable()) {
             brightnessController.start();
         }
+        imageDisplayActivityOpen = false;
     }
 
     @Override
@@ -685,6 +609,8 @@ public class MainActivity extends AppCompatActivity {
         if (statusHandler != null && statusUpdateRunnable != null) {
             statusHandler.removeCallbacks(statusUpdateRunnable);
         }
+        
+        stopAutoPopupPolling();
         
         if (batteryReceiver != null) {
             unregisterReceiver(batteryReceiver);
