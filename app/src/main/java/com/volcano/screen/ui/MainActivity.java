@@ -22,6 +22,7 @@ import com.volcano.screen.ui.SettingsActivity;
 import com.volcano.screen.ui.LogActivity;
 import com.volcano.screen.display.DisplayController;
 import com.volcano.screen.display.DisplayManager;
+import com.volcano.screen.display.BrightnessController;
 import com.volcano.screen.miio.MiioDevice;
 
 import java.text.SimpleDateFormat;
@@ -52,6 +53,12 @@ public class MainActivity extends AppCompatActivity {
     private ExecutorService executorService;
     
     private DisplayManager displayManager;
+    private BrightnessController brightnessController;
+    
+    private LinearLayout brightnessContainer;
+    private TextView brightnessText;
+    private TextView luxText;
+    private CheckBox switchAutoBrightness;
     
     // 标志位：防止 CheckBox 更新时触发监听器
     private boolean isUpdatingCheckBoxes = false;
@@ -85,6 +92,24 @@ public class MainActivity extends AppCompatActivity {
         
         displayManager = new DisplayManager(this);
 
+        brightnessController = new BrightnessController(this, new BrightnessController.BrightnessCallback() {
+            @Override
+            public void onBrightnessChanged(float lux, int brightnessPercent) {
+                runOnUiThread(() -> {
+                    brightnessText.setText("亮度: " + brightnessPercent + "%");
+                    luxText.setText(String.format("光照: %.0f lux", lux));
+                });
+            }
+
+            @Override
+            public void onSensorUnavailable() {
+                runOnUiThread(() -> {
+                    brightnessContainer.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "此设备没有光线传感器", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+
         // 初始化日期时间格式（使用 strings.xml 中的统一定义）
         String timeFormatStr = getString(R.string.time_format);
         String dateFormatStr = getString(R.string.date_format);
@@ -107,6 +132,11 @@ public class MainActivity extends AppCompatActivity {
         viewLogButton = findViewById(R.id.view_log_button);
         debugInfo = findViewById(R.id.debug_info);
         contentContainer = findViewById(R.id.content_container);
+        
+        brightnessContainer = findViewById(R.id.brightness_container);
+        brightnessText = findViewById(R.id.brightness_text);
+        luxText = findViewById(R.id.lux_text);
+        switchAutoBrightness = findViewById(R.id.switch_auto_brightness);
         
         // Set button click listeners
         settingsButton.setOnClickListener(v -> {
@@ -170,6 +200,16 @@ public class MainActivity extends AppCompatActivity {
         // 初始化台灯控制按钮
         setupLampControls();
 
+        // 初始化亮度自动控制
+        switchAutoBrightness.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            brightnessController.setEnabled(isChecked);
+            if (isChecked) {
+                Toast.makeText(MainActivity.this, "自动亮度已开启", Toast.LENGTH_SHORT).show();
+            } else {
+                Toast.makeText(MainActivity.this, "自动亮度已关闭", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         handler = new Handler();
         updateClock();
         
@@ -184,6 +224,7 @@ public class MainActivity extends AppCompatActivity {
         SharedPreferences prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
         boolean lampEnabled = prefs.getBoolean("lamp_enabled", true);
         boolean displayEnabled = prefs.getBoolean("display_enabled", true);
+        boolean brightnessEnabled = prefs.getBoolean("brightness_enabled", true);
         
         // 隐藏/显示台灯控制按钮
         if (btnLampOn != null && btnLampOff != null) {
@@ -203,6 +244,16 @@ public class MainActivity extends AppCompatActivity {
             monitor2Layout.setVisibility(displayVisibility);
             // 隐藏/显示状态按钮
             statusButton.setVisibility(displayVisibility);
+        }
+
+        // 隐藏/显示亮度控制
+        if (brightnessContainer != null) {
+            if (brightnessEnabled && brightnessController.isSensorAvailable()) {
+                brightnessContainer.setVisibility(View.VISIBLE);
+                switchAutoBrightness.setChecked(brightnessController.isEnabled());
+            } else {
+                brightnessContainer.setVisibility(View.GONE);
+            }
         }
     }
 
@@ -621,6 +672,9 @@ public class MainActivity extends AppCompatActivity {
         );
         checkFeatureSettings();
         displayManager.resetController();
+        if (brightnessController.isEnabled() && brightnessController.isSensorAvailable()) {
+            brightnessController.start();
+        }
     }
 
     @Override
@@ -639,5 +693,6 @@ public class MainActivity extends AppCompatActivity {
             executorService.shutdown();
         }
         displayManager.close();
+        brightnessController.destroy();
     }
 }

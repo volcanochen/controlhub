@@ -9,6 +9,7 @@ import subprocess
 import sys
 import time
 import socket
+import os
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 
@@ -88,6 +89,63 @@ def switch_display(mode):
             
     except Exception as e:
         msg = f"[ERROR] Execution failed: {e}"
+        print(msg)
+        return False, msg
+
+
+def set_brightness(brightness):
+    """Set monitor brightness using PowerShell script
+    
+    Args:
+        brightness: int 0-100
+    
+    Returns:
+        tuple: (success: bool, message: str)
+    """
+    try:
+        brightness = int(brightness)
+        if brightness < 0 or brightness > 100:
+            return False, f"Invalid brightness value: {brightness} (must be 0-100)"
+        
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        ps_script = os.path.join(script_dir, 'brightness_control.ps1')
+        
+        if not os.path.exists(ps_script):
+            print(f"Warning: {ps_script} not found")
+            return False, "Brightness control script not found"
+        
+        cmd = [
+            'powershell',
+            '-ExecutionPolicy', 'Bypass',
+            '-File', ps_script,
+            '-Brightness', str(brightness)
+        ]
+        
+        print(f"Setting brightness to {brightness}%")
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+        
+        stdout = result.stdout.strip()
+        stderr = result.stderr.strip()
+        print(f"Brightness script stdout: {stdout}")
+        if stderr:
+            print(f"Brightness script stderr: {stderr}")
+        
+        if 'OK:' in stdout:
+            msg = f"[OK] Brightness set to {brightness}%"
+            print(msg)
+            return True, msg
+        else:
+            error_msg = stdout if stdout else stderr
+            msg = f"[ERROR] Brightness control failed (exit={result.returncode}): {error_msg}"
+            print(msg)
+            return False, msg
+            
+    except subprocess.TimeoutExpired:
+        msg = "[ERROR] Brightness control timed out"
+        print(msg)
+        return False, msg
+    except Exception as e:
+        msg = f"[ERROR] Brightness control failed: {e}"
         print(msg)
         return False, msg
 
@@ -173,6 +231,21 @@ class DisplayHandler(BaseHTTPRequestHandler):
                     'speed_mbps': (len(post_data) / (time.time() - start) * 8 / 1024 / 1024) if (time.time() - start) > 0 else 0
                 }
                 self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.end_headers()
+                self.wfile.write(json.dumps(response).encode('utf-8'))
+                return
+            
+            # Brightness control
+            if self.path == '/brightness':
+                data = json.loads(post_data.decode('utf-8'))
+                brightness = data.get('brightness', -1)
+                
+                print(f"Received brightness: {brightness}")
+                success, message = set_brightness(brightness)
+                
+                response = {'success': success, 'message': message}
+                self.send_response(200 if success else 500)
                 self.send_header('Content-Type', 'application/json')
                 self.end_headers()
                 self.wfile.write(json.dumps(response).encode('utf-8'))

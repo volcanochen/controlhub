@@ -8,6 +8,7 @@ import android.graphics.Color;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
 import android.widget.Switch;
@@ -17,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.volcano.screen.network.NetworkSpeedTester;
 import com.volcano.screen.network.ConnectionTester;
 import com.volcano.screen.display.DisplayManager;
+import com.volcano.screen.display.BrightnessController;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -24,6 +26,10 @@ public class SettingsActivity extends AppCompatActivity {
     
     private Switch switchLamp;
     private Switch switchDisplay;
+    private Switch switchBrightness;
+    private LinearLayout brightnessSettingsDetail;
+    private EditText minBrightnessEdit;
+    private EditText maxBrightnessEdit;
     private Button viewLogButton;
     private Button aboutButton;
     private Button backButton;
@@ -38,6 +44,7 @@ public class SettingsActivity extends AppCompatActivity {
     
     private SharedPreferences prefs;
     private DisplayManager displayManager;
+    private BrightnessController brightnessController;
     private NetworkSpeedTester speedTester;
     private ExecutorService executorService;
     
@@ -48,6 +55,7 @@ public class SettingsActivity extends AppCompatActivity {
         
         prefs = getSharedPreferences("app_settings", MODE_PRIVATE);
         displayManager = new DisplayManager(this);
+        brightnessController = new BrightnessController(this, null);
         executorService = Executors.newSingleThreadExecutor();
         
         initViews();
@@ -58,6 +66,10 @@ public class SettingsActivity extends AppCompatActivity {
     private void initViews() {
         switchLamp = findViewById(R.id.switch_lamp);
         switchDisplay = findViewById(R.id.switch_display);
+        switchBrightness = findViewById(R.id.switch_brightness);
+        brightnessSettingsDetail = findViewById(R.id.brightness_settings_detail);
+        minBrightnessEdit = findViewById(R.id.min_brightness_edit);
+        maxBrightnessEdit = findViewById(R.id.max_brightness_edit);
         viewLogButton = findViewById(R.id.view_log_button);
         aboutButton = findViewById(R.id.about_button);
         backButton = findViewById(R.id.back_button);
@@ -77,6 +89,13 @@ public class SettingsActivity extends AppCompatActivity {
         
         boolean displayEnabled = prefs.getBoolean("display_enabled", true);
         switchDisplay.setChecked(displayEnabled);
+        
+        boolean brightnessEnabled = prefs.getBoolean("brightness_enabled", true);
+        switchBrightness.setChecked(brightnessEnabled);
+        brightnessSettingsDetail.setVisibility(brightnessEnabled ? android.view.View.VISIBLE : android.view.View.GONE);
+        
+        minBrightnessEdit.setText(String.valueOf(brightnessController.getMinBrightness()));
+        maxBrightnessEdit.setText(String.valueOf(brightnessController.getMaxBrightness()));
         
         int preferredMode = displayManager.getPreferredMode();
         switch (preferredMode) {
@@ -119,6 +138,14 @@ public class SettingsActivity extends AppCompatActivity {
             prefs.edit().putBoolean("display_enabled", isChecked).apply();
             Toast.makeText(this, 
                 isChecked ? "显示器控制已启用" : "显示器控制已禁用", 
+                Toast.LENGTH_SHORT).show();
+        });
+        
+        switchBrightness.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            prefs.edit().putBoolean("brightness_enabled", isChecked).apply();
+            brightnessSettingsDetail.setVisibility(isChecked ? android.view.View.VISIBLE : android.view.View.GONE);
+            Toast.makeText(this, 
+                isChecked ? "亮度控制已启用" : "亮度控制已禁用", 
                 Toast.LENGTH_SHORT).show();
         });
         
@@ -223,13 +250,40 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        
+        saveBrightnessSettings();
+        
         prefs.edit()
             .putBoolean("lamp_enabled", switchLamp.isChecked())
             .putBoolean("display_enabled", switchDisplay.isChecked())
+            .putBoolean("brightness_enabled", switchBrightness.isChecked())
             .apply();
         displayManager.close();
+        brightnessController.destroy();
         if (executorService != null) {
             executorService.shutdown();
+        }
+    }
+    
+    private void saveBrightnessSettings() {
+        try {
+            String minStr = minBrightnessEdit.getText().toString().trim();
+            if (!minStr.isEmpty()) {
+                int min = Integer.parseInt(minStr);
+                brightnessController.setMinBrightness(Math.max(0, Math.min(100, min)));
+            }
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
+        }
+        
+        try {
+            String maxStr = maxBrightnessEdit.getText().toString().trim();
+            if (!maxStr.isEmpty()) {
+                int max = Integer.parseInt(maxStr);
+                brightnessController.setMaxBrightness(Math.max(0, Math.min(100, max)));
+            }
+        } catch (NumberFormatException e) {
+            e.printStackTrace();
         }
     }
 }
