@@ -139,13 +139,13 @@ adb install app/build/outputs/apk/debug/app-debug.apk
 3. **启动 PC 服务器**
    ```bash
    cd server
-   python core/usb_display_control.py
+   python tray/tray_service.py
    ```
    
-   或使用 Windows 批处理：
+   或直接命令行：
    ```bash
    cd server
-   scripts\start_usb_display.bat
+   python core/usb_display_control.py
    ```
 
 4. **打开 Android 应用**
@@ -616,11 +616,11 @@ app/build/outputs/apk/debug/app-debug.apk
 # 进入服务器目录
 cd server
 
-# 启动服务器
-python core/usb_display_control.py
+# 启动服务器（推荐托盘方式）
+python tray/tray_service.py
 
-# 或使用 Windows 批处理
-scripts\start_usb_display.bat
+# 或直接命令行启动
+python core/usb_display_control.py
 ```
 
 ### 修改服务器代码

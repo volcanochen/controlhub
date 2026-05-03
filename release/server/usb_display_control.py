@@ -88,6 +88,7 @@ def find_adb_path():
     # Try PATH first
     adb_path = shutil.which("adb")
     if adb_path:
+        print(f"[OK] Found ADB in PATH: {adb_path}")
         return "adb"
     
     # Common installation paths
@@ -109,6 +110,7 @@ def find_adb_path():
     for path in common_paths:
         path = os.path.expandvars(os.path.expanduser(path))
         if os.path.exists(path):
+            print(f"[OK] Found ADB: {path}")
             return path
     
     return None
