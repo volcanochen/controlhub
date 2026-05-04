@@ -84,9 +84,21 @@ def main():
         return 1
     print(f"[OK] APK found: {apk_path}")
     
+    # Uninstall old package (com.controlhub) if exists
+    print()
+    print("[2] Cleaning up old packages...")
+    old_packages = ["com.controlhub", "com.volcano.controlhub"]
+    for pkg in old_packages:
+        try:
+            result = subprocess.run([adb, "uninstall", pkg], capture_output=True, text=True, timeout=10)
+            if "Success" in result.stdout:
+                print(f"[OK] Uninstalled old package: {pkg}")
+        except:
+            pass
+    
     # Install APK
     print()
-    print("[2] Installing APK...")
+    print("[3] Installing APK...")
     try:
         result = subprocess.run([adb, "install", "-r", apk_path], capture_output=True, text=True, timeout=60)
         print(result.stdout)
@@ -103,16 +115,16 @@ def main():
     
     # Launch app
     print()
-    print("[3] Launching app...")
+    print("[4] Launching app...")
     try:
-        result = subprocess.run([adb, "shell", "am", "start", "-n", "com.volcano.screen/.ui.MainActivity"], 
+        result = subprocess.run([adb, "shell", "am", "start", "-n", "com.volcano.controlhub/.ui.MainActivity"], 
                                capture_output=True, text=True, timeout=10)
         if result.returncode == 0:
             print("[OK] App launched!")
         else:
             print("[ERROR] Launch failed, trying alternative...")
             # Try generic launch
-            result = subprocess.run([adb, "shell", "monkey", "-p", "com.volcano.screen", "-c", "android.intent.category.LAUNCHER", "1"], 
+            result = subprocess.run([adb, "shell", "monkey", "-p", "com.volcano.controlhub", "-c", "android.intent.category.LAUNCHER", "1"], 
                                    capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
                 print("[OK] App launched!")

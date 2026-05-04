@@ -131,6 +131,77 @@
                 android:background="@drawable/edit_bg"
                 android:paddingStart="12dp"
                 android:paddingEnd="12dp"/>
+            
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#40FFFFFF"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="10dp"/>
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="本机 IP 地址"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginBottom="6dp"/>
+            
+            <TextView
+                android:id="@+id/device_ip_text"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="正在获取..."
+                android:textColor="#88CCFF"
+                android:textSize="16sp"
+                android:gravity="center_vertical"
+                android:background="@drawable/edit_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:clickable="true"
+                android:focusable="true"/>
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="摄像头服务端口"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="6dp"/>
+            
+            <TextView
+                android:id="@+id/camera_port_text"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="8766"
+                android:textColor="#88CCFF"
+                android:textSize="16sp"
+                android:gravity="center_vertical"
+                android:background="@drawable/edit_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"/>
+            
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="USB 连接状态"
+                android:textSize="14sp"
+                android:textColor="#AAAAAA"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="6dp"/>
+            
+            <TextView
+                android:id="@+id/usb_status_text"
+                android:layout_width="match_parent"
+                android:layout_height="44dp"
+                android:text="检测中..."
+                android:textColor="#88CCFF"
+                android:textSize="16sp"
+                android:gravity="center_vertical"
+                android:background="@drawable/edit_bg"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"/>
         </LinearLayout>
 
         <LinearLayout

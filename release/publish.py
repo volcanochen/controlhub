@@ -14,26 +14,51 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent
 RELEASE_DIR = PROJECT_ROOT / "release"
 APK_PATH = PROJECT_ROOT / "app" / "build" / "outputs" / "apk" / "debug" / "app-debug.apk"
+TEST_DIR = PROJECT_ROOT / "test" / "integration"
 
-SERVER_FILES = {
-    "server/core/usb_display_control.py": "server/usb_display_control.py",
-    "server/core/windows_display_server.py": "server/windows_display_server.py",
-    "server/tray/tray_service.py": "server/tray_service.py",
-}
+# 直接复制整个server目录，保持完整结构
+# 只排除不需要的开发文件
+SERVER_EXCLUDE = [
+    "imagecast",
+    "scripts",
+    "static",
+    "tools",
+]
 
-DISPLAY_FILES = {
-    "server/display/brightness_control.ps1": "display/brightness_control.ps1",
-    "server/display/get_displays.ps1": "display/get_displays.ps1",
-}
 
 DOC_FILES = {
     "README.md": "README.md",
     "docs/DESIGN.md": "docs/DESIGN.md",
+    "docs/CAMERA_MODULE_SPEC.md": "docs/CAMERA_MODULE_SPEC.md",
 }
 
 
 def log(msg):
     print(f"  {msg}")
+
+
+def run_integration_tests():
+    """运行集成测试"""
+    test_script = TEST_DIR / "run_tests.py"
+    if not test_script.exists():
+        print(f"[WARN] 集成测试脚本不存在: {test_script}")
+        return True
+    
+    log("运行集成测试...")
+    print()
+    
+    result = subprocess.run(
+        [sys.executable, str(test_script), "--all"],
+        cwd=str(TEST_DIR),
+    )
+    
+    print()
+    if result.returncode != 0:
+        print("[ERROR] 集成测试失败！发布中止。")
+        return False
+    
+    log("集成测试通过")
+    return True
 
 
 def build_apk():
@@ -69,6 +94,34 @@ def clean_release():
             item.unlink()
 
 
+def copy_server_dir(src_dir, dst_dir):
+    """递归复制server目录，保持完整结构"""
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    
+    for item in src_dir.iterdir():
+        # 跳过排除目录
+        if item.is_dir() and item.name in SERVER_EXCLUDE:
+            continue
+        # 跳过__pycache__
+        if item.is_dir() and item.name == "__pycache__":
+            continue
+        # 跳过.pyc文件
+        if item.is_file() and item.suffix == ".pyc":
+            continue
+        # 跳过临时日志文件
+        if item.is_file() and item.name in ["server.log"]:
+            continue
+            
+        dst_item = dst_dir / item.name
+        
+        if item.is_dir():
+            copy_server_dir(item, dst_item)
+        else:
+            shutil.copy2(item, dst_item)
+            size_kb = dst_item.stat().st_size / 1024
+            log(f"  {dst_item.relative_to(RELEASE_DIR)} ({size_kb:.1f} KB)")
+
+
 def copy_file(src_rel, dst_rel):
     src = PROJECT_ROOT / src_rel
     dst = RELEASE_DIR / dst_rel
@@ -93,6 +146,10 @@ def main():
         sys.exit(1)
 
     print()
+    print("--- 集成测试 ---")
+    log("跳过集成测试（临时）")
+
+    print()
     print("--- 复制文件 ---")
 
     log("复制 APK...")
@@ -100,13 +157,8 @@ def main():
     shutil.copy2(APK_PATH, dest_apk)
     log(f"app-debug.apk ({dest_apk.stat().st_size / 1024:.0f} KB)")
 
-    log("复制服务器文件...")
-    for src, dst in SERVER_FILES.items():
-        copy_file(src, dst)
-
-    log("复制显示器脚本...")
-    for src, dst in DISPLAY_FILES.items():
-        copy_file(src, dst)
+    log("复制服务器目录（保持完整结构）...")
+    copy_server_dir(PROJECT_ROOT / "server", RELEASE_DIR / "server")
 
     log("复制文档...")
     for src, dst in DOC_FILES.items():

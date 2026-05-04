@@ -2,12 +2,29 @@ plugins {
     id 'com.android.application'
 }
 
+def getGitCommitId() {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (Exception e) {
+        return "unknown"
+    }
+}
+
+def getBuildTime() {
+    return new Date().format("yyyy-MM-dd HH:mm:ss", TimeZone.getTimeZone("Asia/Shanghai"))
+}
+
 android {
     compileSdk 33
     buildToolsVersion "33.0.0"
 
     defaultConfig {
-        applicationId "com.volcano.screen"
+        applicationId "com.volcano.controlhub"
         minSdk 21
         targetSdk 33
         versionCode 4
@@ -17,7 +34,6 @@ android {
     }
     
     buildFeatures {
-        // 确保生成R.java
         buildConfig = true
     }
 
@@ -33,18 +49,40 @@ android {
         encoding = 'UTF-8'
     }
     
-    // 确保所有Java编译任务使用UTF-8编码
     tasks.withType(JavaCompile) {
         options.encoding = 'UTF-8'
     }
     
-    namespace 'com.volcano.screen'
+    namespace 'com.volcano.controlhub'
+    
+    applicationVariants.all { variant ->
+        variant.buildConfigField "String", "GIT_COMMIT_ID", "\"${getGitCommitId()}\""
+        variant.buildConfigField "String", "BUILD_TIME", "\"${getBuildTime()}\""
+    }
 }
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    // CameraX
+    def camerax_version = "1.2.3"
+    implementation "androidx.camera:camera-core:${camerax_version}"
+    implementation "androidx.camera:camera-camera2:${camerax_version}"
+    implementation "androidx.camera:camera-lifecycle:${camerax_version}"
+    implementation "androidx.camera:camera-view:${camerax_version}"
+    implementation "androidx.camera:camera-video:${camerax_version}"
+    
+    // ML Kit Barcode Scanning
+    implementation "com.google.mlkit:barcode-scanning:17.2.0"
+    
+    // NanoHTTPD for MJPEG streaming
+    implementation "org.nanohttpd:nanohttpd:2.3.1"
+    
+    // JSON
+    implementation "com.google.code.gson:gson:2.10.1"
+    
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'

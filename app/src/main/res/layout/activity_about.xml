@@ -93,7 +93,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="开发者：Volcano Chen\n\n🤖 AI 开发\n本应用由 AI 助手辅助开发\n\n开源地址：\nhttps://github.com/volcanochen/screen"
+            android:text="开发者：Volcano Chen\n\n🤖 AI 开发\n本应用由 AI 助手辅助开发\n\n开源地址：\nhttps://github.com/volcanochen/controlhub"
             android:textSize="14sp"
             android:textColor="@android:color/darker_gray"
             android:lineSpacingExtra="5dp"
