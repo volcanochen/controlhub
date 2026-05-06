@@ -40,7 +40,7 @@
             android:textSize="16sp"
             android:textColor="@android:color/darker_gray"
             android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="30dp"/>
+            android:layout_marginBottom="20dp"/>
 
         <!-- App Introduction -->
         <TextView
@@ -55,10 +55,30 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="这是一款功能强大的 Android 控制台应用，可以通过 USB 连接控制 Windows 电脑的显示器配置。支持切换单屏/双屏模式，实时查看显示器状态，并提供便捷的台灯控制功能。"
+            android:text="这是一款功能强大的 Android 控制台应用，支持通过 USB 和 WiFi 连接控制 Windows 电脑。包含显示器控制、摄像头模块、图像投射等功能。"
             android:textSize="14sp"
             android:textColor="@android:color/darker_gray"
             android:lineSpacingExtra="5dp"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Changelog -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="更新日志"
+            android:textSize="18sp"
+            android:textColor="@android:color/white"
+            android:textStyle="bold"
+            android:layout_marginBottom="15dp"/>
+
+        <TextView
+            android:id="@+id/changelog_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="加载中..."
+            android:textSize="13sp"
+            android:textColor="@android:color/darker_gray"
+            android:lineSpacingExtra="4dp"
             android:layout_marginBottom="20dp"/>
 
         <!-- Usage Instructions -->
@@ -74,7 +94,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1. 通过 USB 连接手机和电脑\n2. 在电脑端启动 USB Display Control Server\n3. 确保 ADB 反向端口转发已建立\n4. 在手机端点击 Ready 按钮检查连接状态\n5. 使用复选框切换显示器模式\n6. 可在设置中启用/禁用各项功能"
+            android:text="1. 通过 USB 或 WiFi 连接手机和电脑\n2. 在电脑端启动 ControlHub Server\n3. 确保网络通道连接正常\n4. 使用各项功能（显示控制、摄像头、图像投射）\n5. 可在设置中配置各项功能"
             android:textSize="14sp"
             android:textColor="@android:color/darker_gray"
             android:lineSpacingExtra="5dp"
@@ -98,7 +118,18 @@
             android:textColor="@android:color/darker_gray"
             android:lineSpacingExtra="5dp"
             android:autoLink="web"
-            android:layout_marginBottom="30dp"/>
+            android:layout_marginBottom="15dp"/>
+
+        <!-- Copyright -->
+        <TextView
+            android:id="@+id/copyright_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Copyright © 2026"
+            android:textSize="12sp"
+            android:textColor="#666666"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="20dp"/>
 
         <!-- Back Button -->
         <Button

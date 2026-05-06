@@ -3,5 +3,6 @@
     <string name="time_format">HH:mm:ss</string>
     <string name="date_format">yyyy MM dd</string>
     <string name="day_format">EEEE</string>
-    <string name="app_version">v1.4.0</string>
+    <string name="app_version">v1.5.0</string>
+    <string name="app_copyright">Copyright © 2026 Volcano Chen</string>
 </resources>

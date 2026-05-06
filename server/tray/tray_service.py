@@ -27,20 +27,13 @@ SERVER_URL = f"localhost:{SERVER_PORT}"
 SERVER_SCRIPT = Path(__file__).parent.parent / "core" / "usb_display_control.py"
 LOG_FILE = Path(__file__).parent.parent / "server.log"
 
-CAMERA_CONFIG_FILE = Path(__file__).parent.parent / "camera" / "config.json"
-
 ICON_SIZE = (64, 64)
 STATUS_CHECK_INTERVAL = 3
 
-ADB_PATH = None
-if sys.platform == 'win32':
-    local_app_data = os.environ.get('LOCALAPPDATA', '')
-    if local_app_data:
-        adb_path = Path(local_app_data) / "Android" / "Sdk" / "platform-tools" / "adb.exe"
-        if adb_path.exists():
-            ADB_PATH = str(adb_path)
-if ADB_PATH is None:
-    ADB_PATH = "adb"
+# 导入统一管理模块
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.network_manager import get_network_manager
+from core.app_info import get_app_info, get_changelog_text, APP_NAME, APP_VERSION, APP_COPYRIGHT, APP_AUTHOR, APP_REPO
 
 
 class TrayService:
@@ -56,17 +49,14 @@ class TrayService:
         self._current_brightness = 100
         
         self.scanning = False
-        self._camera_host = None
-        self._camera_port = None
-        self._camera_channel = "auto"
-        self._camera_config_mtime = 0
-        self._adb_forward_active = False
-        self._usb_device_connected = False
         self._preview_window = None
         self._preview_running = False
         self._virtual_camera = None
         self._virtual_camera_running = False
         self._brightness_window = None
+        
+        # 使用统一网络管理器
+        self._net_manager = get_network_manager()
         
         self.icon_green = self._create_icon((0, 180, 0), "G")
         self.icon_red = self._create_icon((200, 50, 50), "X")
@@ -74,159 +64,26 @@ class TrayService:
     
     @property
     def camera_host(self):
-        self._reload_camera_config_if_changed()
-        return self._camera_host or "192.168.50.132"
+        return self._net_manager.host
     
     @property
     def camera_port(self):
-        self._reload_camera_config_if_changed()
-        return self._camera_port or 8766
+        return self._net_manager.port
     
     @property
     def camera_channel(self):
-        self._reload_camera_config_if_changed()
-        return self._camera_channel or "auto"
+        return self._net_manager.channel
     
-    def _reload_camera_config_if_changed(self):
-        try:
-            if CAMERA_CONFIG_FILE.exists():
-                mtime = CAMERA_CONFIG_FILE.stat().st_mtime
-                if mtime != self._camera_config_mtime:
-                    self._camera_config_mtime = mtime
-                    with open(CAMERA_CONFIG_FILE, 'r', encoding='utf-8') as f:
-                        config = json.load(f)
-                        self._camera_host = config.get("host")
-                        self._camera_port = config.get("port")
-                        self._camera_channel = config.get("channel", "auto")
-        except:
-            pass
+    @property
+    def _usb_device_connected(self):
+        return self._net_manager.is_usb_connected
     
-    def _load_camera_config(self):
-        self._reload_camera_config_if_changed()
-    
-    def _save_camera_config(self):
-        try:
-            CAMERA_CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-            config = {
-                "host": self._camera_host or "192.168.50.132",
-                "port": self._camera_port or 8766,
-                "channel": self._camera_channel or "auto"
-            }
-            with open(CAMERA_CONFIG_FILE, 'w', encoding='utf-8') as f:
-                json.dump(config, f, indent=2)
-            self._camera_config_mtime = CAMERA_CONFIG_FILE.stat().st_mtime
-        except:
-            pass
-    
-    def _check_adb_devices(self):
-        try:
-            result = subprocess.run(
-                [ADB_PATH, 'devices'],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            lines = result.stdout.strip().split('\n')
-            valid_devices = []
-            offline_devices = []
-            unauthorized_devices = []
-            
-            for line in lines[1:]:
-                if line.strip() and 'List' not in line:
-                    parts = line.split('\t')
-                    if len(parts) >= 2:
-                        device_id = parts[0]
-                        status = parts[1].strip()
-                        if status == 'device':
-                            valid_devices.append(device_id)
-                        elif status == 'offline':
-                            offline_devices.append(device_id)
-                        elif status == 'unauthorized':
-                            unauthorized_devices.append(device_id)
-            
-            if offline_devices:
-                print(f"[WARN] Device(s) offline: {offline_devices}, attempting reconnect...")
-                self._reconnect_adb()
-            
-            if unauthorized_devices:
-                print(f"[WARN] Device(s) unauthorized: {unauthorized_devices}, please allow USB debugging on phone")
-            
-            self._usb_device_connected = len(valid_devices) > 0
-            return self._usb_device_connected
-        except Exception as e:
-            self._usb_device_connected = False
-            return False
-    
-    def _reconnect_adb(self):
-        """尝试重新连接offline的设备"""
-        try:
-            print("[INFO] Attempting ADB reconnect...")
-            result = subprocess.run(
-                [ADB_PATH, 'reconnect'],
-                capture_output=True,
-                text=True,
-                timeout=10,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            if result.returncode == 0:
-                print(f"[INFO] ADB reconnect: {result.stdout.strip()}")
-            time.sleep(2)
-            
-            result = subprocess.run(
-                [ADB_PATH, 'devices'],
-                capture_output=True,
-                text=True,
-                timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            print(f"[INFO] ADB devices: {result.stdout.strip()}")
-        except Exception as e:
-            print(f"[ERROR] ADB reconnect failed: {e}")
-    
-    def _setup_adb_forward(self):
-        try:
-            subprocess.run(
-                [ADB_PATH, 'forward', f'tcp:{self.camera_port}', f'tcp:{self.camera_port}'],
-                capture_output=True,
-                timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            self._adb_forward_active = True
-            return True
-        except Exception as e:
-            self._adb_forward_active = False
-            return False
-    
-    def _remove_adb_forward(self):
-        try:
-            subprocess.run(
-                [ADB_PATH, 'forward', '--remove', f'tcp:{self.camera_port}'],
-                capture_output=True,
-                timeout=5,
-                creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == 'win32' else 0
-            )
-            self._adb_forward_active = False
-        except:
-            pass
+    @property
+    def _adb_forward_active(self):
+        return self._net_manager.is_adb_forward_active
     
     def _get_effective_camera_url(self):
-        channel = self.camera_channel.lower()
-        
-        if channel == "usb":
-            if self._check_adb_devices():
-                self._setup_adb_forward()
-                return f"http://localhost:{self.camera_port}"
-            else:
-                return None
-        elif channel == "wifi":
-            return f"http://{self.camera_host}:{self.camera_port}"
-        else:
-            if self._check_adb_devices():
-                self._setup_adb_forward()
-                return f"http://localhost:{self.camera_port}"
-            else:
-                return f"http://{self.camera_host}:{self.camera_port}"
+        return self._net_manager.get_effective_url()
     
     def _create_icon(self, color, text):
         img = Image.new('RGBA', ICON_SIZE, (0, 0, 0, 0))
@@ -288,6 +145,8 @@ class TrayService:
             Menu.SEPARATOR,
             MenuItem('Open Status Window', self._open_status_window),
             MenuItem('View Server Log', self._view_log),
+            Menu.SEPARATOR,
+            MenuItem('关于 Control Hub', self._show_about),
             Menu.SEPARATOR,
             MenuItem('Exit', self._exit),
         )
@@ -647,38 +506,32 @@ class TrayService:
             try:
                 if ':' in new_value:
                     host, port = new_value.split(':')
-                    self._camera_host = host.strip()
-                    self._camera_port = int(port.strip())
+                    self._net_manager.set_host(host.strip())
+                    self._net_manager.set_port(int(port.strip()))
                 else:
-                    self._camera_host = new_value.strip()
-                    self._camera_port = 8766
+                    self._net_manager.set_host(new_value.strip())
+                    self._net_manager.set_port(8766)
                 
-                self._save_camera_config()
                 self.notify("Config Saved", f"Camera: {self.camera_host}:{self.camera_port}")
                 self._update_menu()
             except Exception as e:
                 self.notify("Error", f"Invalid format: {e}")
     
     def _set_usb_channel(self, icon, item=None):
-        self._camera_channel = "usb"
-        self._save_camera_config()
-        if self._check_adb_devices():
-            self._setup_adb_forward()
+        self._net_manager.set_channel("usb")
+        if self._net_manager.check_usb_devices():
             self.notify("Channel Set", "USB Channel (ADB Forward)")
         else:
             self.notify("Warning", "USB Channel set, but no device connected")
         self._update_menu()
     
     def _set_wifi_channel(self, icon, item=None):
-        self._camera_channel = "wifi"
-        self._remove_adb_forward()
-        self._save_camera_config()
+        self._net_manager.set_channel("wifi")
         self.notify("Channel Set", f"WiFi Channel: {self.camera_host}:{self.camera_port}")
         self._update_menu()
     
     def _set_auto_channel(self, icon, item=None):
-        self._camera_channel = "auto"
-        self._save_camera_config()
+        self._net_manager.set_channel("auto")
         self.notify("Channel Set", "Auto Channel (USB preferred)")
         self._update_menu()
     
@@ -885,6 +738,92 @@ class TrayService:
         else:
             self.notify("No Log File", f"Not found: {LOG_FILE}")
     
+    def _show_about(self, icon=None):
+        import tkinter as tk
+        from tkinter import ttk, scrolledtext
+        
+        root = tk.Tk()
+        root.withdraw()
+        
+        window = tk.Toplevel(root)
+        window.title("关于 Control Hub Server")
+        window.geometry("540x580")
+        window.protocol("WM_DELETE_WINDOW", lambda: [window.destroy(), root.destroy()])
+        
+        main_frame = ttk.Frame(window, padding="15")
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = ttk.Frame(main_frame)
+        header_frame.pack(fill=tk.X, pady=(0, 15))
+        
+        title_label = ttk.Label(
+            header_frame, 
+            text="Control Hub Server", 
+            font=('Segoe UI', 16, 'bold')
+        )
+        title_label.pack()
+        
+        version_label = ttk.Label(
+            header_frame, 
+            text=f"v{APP_VERSION}", 
+            font=('Segoe UI', 10),
+            foreground='#666666'
+        )
+        version_label.pack(pady=(5, 0))
+        
+        ttk.Separator(main_frame, orient='horizontal').pack(fill=tk.X, pady=10)
+        
+        # Info section
+        info_frame = ttk.Frame(main_frame)
+        info_frame.pack(fill=tk.X, pady=(0, 10))
+        
+        info_text = (
+            f"开发者：{APP_AUTHOR}\n"
+            "🤖 AI 开发：本应用由 AI 助手辅助开发\n"
+            f"开源地址：{APP_REPO}"
+        )
+        info_label = ttk.Label(info_frame, text=info_text)
+        info_label.pack(anchor='w')
+        
+        ttk.Separator(main_frame, orient='horizontal').pack(fill=tk.X, pady=10)
+        
+        # Changelog
+        changelog_label = ttk.Label(
+            main_frame, 
+            text="更新日志", 
+            font=('Segoe UI', 10, 'bold')
+        )
+        changelog_label.pack(anchor='w', pady=(0, 5))
+        
+        changelog_widget = scrolledtext.ScrolledText(
+            main_frame, 
+            height=15, 
+            wrap=tk.WORD, 
+            font=('Consolas', 9),
+            background='#f5f5f5'
+        )
+        changelog_widget.pack(fill=tk.BOTH, expand=True, pady=(0, 15))
+        changelog_widget.insert(tk.END, get_changelog_text())
+        changelog_widget.config(state='disabled')
+        
+        # Copyright
+        copyright_label = ttk.Label(
+            main_frame, 
+            text=APP_COPYRIGHT,
+            font=('Segoe UI', 9),
+            foreground='#666666'
+        )
+        copyright_label.pack()
+        
+        # Close button
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill=tk.X, pady=(10, 0))
+        
+        ttk.Button(btn_frame, text="关闭", command=lambda: [window.destroy(), root.destroy()]).pack(side='right')
+        
+        window.mainloop()
+    
     def notify(self, title, message=""):
         try:
             self.icon.notify(message, title)
@@ -909,7 +848,8 @@ class TrayService:
                 self.server_process.kill()
             self.server_process = None
         
-        self._remove_adb_forward()
+        # 清理网络资源
+        self._net_manager.cleanup()
         
         self._force_close_port(SERVER_PORT)
         
@@ -968,7 +908,7 @@ class TrayService:
 
 def main():
     print("=" * 50)
-    print("  Control Hub Server")
+    print(f"  {APP_NAME} Server v{APP_VERSION}")
     print("=" * 50)
     print(f"  Server script: {SERVER_SCRIPT}")
     print(f"  Port: {SERVER_PORT}")

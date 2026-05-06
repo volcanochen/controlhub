@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ControlHub v1.5.0 - 详细测试报告</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif; background: linear-gradient(135deg, #1a365d 0%, #2c5282 100%); padding: 20px; line-height: 1.6; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; border-radius: 15px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%); color: white; padding: 50px 40px; text-align: center; }
+        .header h1 { font-size: 2.8em; margin-bottom: 10px; font-weight: 700; }
+        .header .subtitle { font-size: 1.2em; opacity: 0.9; margin-top: 10px; }
+        
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 25px; padding: 40px; background: #f7fafc; border-bottom: 3px solid #e2e8f0; }
+        .summary-card { background: white; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); transition: transform 0.2s; }
+        .summary-card:hover { transform: translateY(-3px); }
+        .summary-card h3 { color: #718096; font-size: 0.85em; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+        .summary-card .value { font-size: 2.5em; font-weight: 800; }
+        .passed .value { color: #38a169; }
+        .failed .value { color: #e53e3e; }
+        .total .value { color: #3182ce; }
+        .rate .value { color: #805ad5; }
+        
+        .env-info { padding: 30px 40px; background: #edf2f7; border-bottom: 1px solid #e2e8f0; }
+        .env-info h2 { color: #2d3748; margin-bottom: 20px; font-size: 1.4em; }
+        .env-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
+        .env-item { background: white; padding: 15px; border-radius: 8px; border-left: 4px solid #3182ce; }
+        .env-item .label { color: #718096; font-size: 0.85em; font-weight: 600; }
+        .env-item .value { color: #2d3748; font-weight: 600; margin-top: 5px; }
+        
+        .content { padding: 40px; }
+        
+        .category { margin-bottom: 50px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; }
+        .category-header { background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%); color: white; padding: 20px 25px; display: flex; justify-content: space-between; align-items: center; }
+        .category-header h2 { font-size: 1.4em; font-weight: 600; }
+        .category-stats { display: flex; gap: 20px; }
+        .stat-item { display: flex; align-items: center; gap: 8px; }
+        .stat-badge { padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 0.9em; }
+        .stat-badge.pass { background: #c6f6d5; color: #22543d; }
+        .stat-badge.fail { background: #fed7d7; color: #742a2a; }
+        
+        .test-item { background: white; border-bottom: 1px solid #e2e8f0; padding: 25px; }
+        .test-item:last-child { border-bottom: none; }
+        .test-item.pass { border-left: 5px solid #38a169; }
+        .test-item.fail { border-left: 5px solid #e53e3e; }
+        
+        .test-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
+        .test-id { background: #2d3748; color: white; padding: 6px 14px; border-radius: 6px; font-family: 'Consolas', monospace; font-weight: 700; font-size: 0.9em; }
+        .test-status { padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 0.9em; }
+        .test-status.pass { background: #c6f6d5; color: #22543d; }
+        .test-status.fail { background: #fed7d7; color: #742a2a; }
+        
+        .test-name { font-size: 1.2em; font-weight: 700; color: #2d3748; margin: 10px 0; }
+        .test-section { margin: 15px 0; }
+        .test-section h4 { color: #4a5568; font-size: 0.95em; margin-bottom: 8px; font-weight: 600; }
+        .test-section p, .test-section ul { color: #4a5568; margin-left: 10px; }
+        .test-section ul { padding-left: 20px; }
+        .test-section li { margin: 5px 0; }
+        
+        .code-block { background: #1a202c; color: #e2e8f0; padding: 15px; border-radius: 8px; font-family: 'Consolas', monospace; font-size: 0.9em; overflow-x: auto; margin-top: 10px; white-space: pre-wrap; word-wrap: break-word; }
+        .code-block.stdout { border-left: 4px solid #38a169; }
+        .code-block.stderr { border-left: 4px solid #e53e3e; }
+        
+        .compare { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 10px; }
+        .compare-box { padding: 15px; border-radius: 8px; }
+        .compare-box.expected { background: #ebf8ff; border: 1px solid #90cdf4; }
+        .compare-box.actual { background: #f0fff4; border: 1px solid #9ae6b4; }
+        .compare-box h5 { color: #2c5282; margin-bottom: 8px; font-size: 0.9em; }
+        
+        .footer { text-align: center; padding: 40px; color: #718096; background: #f7fafc; border-top: 1px solid #e2e8f0; }
+        .footer p { margin: 5px 0; }
+        
+        .toggle-btn { background: #4299e1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; margin-top: 10px; }
+        .toggle-btn:hover { background: #3182ce; }
+        .collapsible { display: none; }
+        .collapsible.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>ControlHub v1.5.0</h1>
+            <p class="subtitle">详细测试报告 - Detailed Test Report</p>
+        </div>
+        
+        <div class="summary">
+            <div class="summary-card total">
+                <h3>总测试数</h3>
+                <div class="value">20</div>
+            </div>
+            <div class="summary-card passed">
+                <h3>通过</h3>
+                <div class="value">18</div>
+            </div>
+            <div class="summary-card failed">
+                <h3>失败</h3>
+                <div class="value">2</div>
+            </div>
+            <div class="summary-card rate">
+                <h3>通过率</h3>
+                <div class="value">90.0%</div>
+            </div>
+            <div class="summary-card total">
+                <h3>总耗时</h3>
+                <div class="value">79.97s</div>
+            </div>
+        </div>
+        
+        <div class="env-info">
+            <h2>📋 测试环境信息</h2>
+            <div class="env-grid">
+                <div class="env-item">
+                    <div class="label">操作系统</div>
+                    <div class="value">Windows 10</div>
+                </div>
+                <div class="env-item">
+                    <div class="label">Python版本</div>
+                    <div class="value">3.13.1</div>
+                </div>
+                <div class="env-item">
+                    <div class="label">平台信息</div>
+                    <div class="value">Windows-10-10.0.19045-SP0</div>
+                </div>
+                <div class="env-item">
+                    <div class="label">测试时间</div>
+                    <div class="value">2026-05-07 02:48:40</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="content">
+
+            <div class="category">
+                <div class="category-header">
+                    <h2>白盒测试 - AppInfo</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 4</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 0.01s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-APP-001</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_app_info_constants</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证app_info.py中的所有常量是否正确定义</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 导入app_info模块</li><li>2. 检查APP_NAME是否为'ControlHub'</li><li>3. 检查APP_VERSION是否为'1.5.0'</li><li>4. 检查其他必填字段是否非空</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>所有常量都有正确的值，且非空</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>所有常量值正确</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-APP-002</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_changelog</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证更新日志数据结构是否完整</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 检查VERSION_CHANGELOG是否为列表类型</li><li>2. 检查列表长度至少为1</li><li>3. 检查最新版本是否为1.5.0</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>更新日志包含完整的版本信息，最新版本为1.5.0</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>找到6个版本，最新版本为1.5.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-APP-003</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_get_changelog_text</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证get_changelog_text()函数能正确生成格式化文本</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 调用get_changelog_text()获取文本</li><li>2. 检查返回值是否为字符串类型</li><li>3. 检查文本中是否包含'v1.5.0'</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>生成的文本包含正确的版本信息，格式正确</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>文本长度为291字符，包含v1.5.0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-APP-004</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_get_app_info</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证get_app_info()函数能正确返回完整信息</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 调用get_app_info()获取信息字典</li><li>2. 检查返回值是否为字典类型</li><li>3. 检查字典是否包含所有必填字段</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>返回的字典包含name、version、copyright、changelog等所有必填字段</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>成功返回包含7个字段的字典</p>
+                            </div>
+                        </div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>白盒测试 - NetworkManager</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 4</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 0.04s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-NM-001</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_network_manager_init</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证NetworkManager类能够正确初始化</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 创建NetworkManager实例</li><li>2. 验证实例不为None</li><li>3. 验证config_path属性已正确设置</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>NetworkManager实例成功创建，配置路径正确</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>NetworkManager实例创建成功</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-NM-002</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_network_manager_properties</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证NetworkManager的属性访问功能正常</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 访问host属性</li><li>2. 访问port属性</li><li>3. 访问channel属性</li><li>4. 验证所有属性都返回有效值</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>所有属性都能正常访问，返回有效数据类型正确</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>host=192.168.50.132, port=8766, channel=auto</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-NM-003</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_network_manager_set_channel</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证NetworkManager能够正确处理通道设置</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 调用set_channel('auto')</li><li>2. 验证参数验证功能正常</li><li>3. 验证异常情况处理</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>通道设置功能正常，参数验证正确</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>通道设置功能验证完成</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">WB-NM-004</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_network_manager_get_info</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证能够正确获取网络信息</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 通过属性获取host</li><li>2. 通过属性获取port</li><li>3. 通过属性获取channel</li><li>4. 构建信息字典</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>能够正确获取所有网络配置信息</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>成功获取网络信息: {'host': '192.168.50.132', 'port': 8766, 'channel': 'auto'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>黑盒测试 - 发布包验证</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 4</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 0.01s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">BB-PUB-001</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_publish_structure</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证发布包的目录结构是否完整</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 检查release目录是否存在</li><li>2. 检查server子目录是否存在</li><li>3. 检查server/core子目录是否存在</li><li>4. 检查server/tray子目录是否存在</li><li>5. 检查server/camera子目录是否存在</li><li>6. 检查docs子目录是否存在</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>所有必需的目录都存在，结构完整</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>目录结构验证通过</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">BB-PUB-002</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_publish_core_files</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证发布包包含所有核心文件</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 检查app_info.py是否存在</li><li>2. 检查network_manager.py是否存在</li><li>3. 检查tray_service.py是否存在</li><li>4. 检查camera_client.py是否存在</li><li>5. 检查其他必需文件是否存在</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>所有核心文件都已正确发布</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>所有10个核心文件存在</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">BB-PUB-003</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_publish_version</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证发布包中的版本信息是否正确</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 读取app_info.py文件</li><li>2. 检查APP_VERSION是否为'1.5.0'</li><li>3. 验证其他版本相关信息</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>版本信息为1.5.0，与当前发布版本一致</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>版本信息验证通过 (1.5.0)</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">BB-PUB-004</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_publish_camera_config</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证相机配置文件是否已正确发布</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 检查server/camera/config.json是否存在</li><li>2. 验证文件可以正常读取</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>相机配置文件存在且可以正常读取</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>相机配置文件验证通过</p>
+                            </div>
+                        </div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>集成测试 - 网络模块集成</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 4</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 1.10s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">IT-MOD-001</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_tray_imports</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证Tray服务能够正确导入和使用核心模块</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 从core.app_info导入APP_VERSION</li><li>2. 从core.network_manager导入NetworkManager</li><li>3. 验证APP_VERSION值为'1.5.0'</li><li>4. 验证NetworkManager可以初始化</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>所有模块能够正确导入，版本信息正确，NetworkManager可以正常实例化</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>模块导入成功，NetworkManager实例化成功</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">IT-MOD-002</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_camera_module_imports</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证相机模块能够正常导入和初始化</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 从camera.camera_client导入CameraClient</li><li>2. 验证CameraClient类可以正常实例化</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>CameraClient可以正常导入和实例化</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>CameraClient模块导入和实例化成功</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">IT-MOD-003</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_tray_integration_with_network_manager</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证Tray服务与NetworkManager之间的集成</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 创建NetworkManager实例</li><li>2. 通过属性访问获取host、port、channel信息</li><li>3. 验证返回值的类型和内容</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>能够正确获取所有网络配置信息，类型正确</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>成功获取网络信息: host=192.168.50.132, port=8766, channel=auto</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">IT-MOD-004</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">test_about_info_source</div>
+                    
+                    <div class="test-section">
+                        <h4>🎯 测试目的</h4>
+                        <p>验证About信息来自统一的app_info模块</p>
+                    </div>
+                    
+                    <div class="test-section">
+                        <h4>📝 测试步骤</h4>
+                        <ul>
+                <li>1. 导入get_app_info和get_changelog_text函数</li><li>2. 验证get_app_info返回的信息正确性</li><li>3. 验证get_changelog_text返回的内容正确性</li></ul></div>
+                    <div class="test-section">
+                        <div class="compare">
+                            <div class="compare-box expected">
+                                <h5>期望结果</h5>
+                                <p>About信息全部来自app_info模块，且与预期一致</p>
+                            </div>
+                            <div class="compare-box actual">
+                                <h5>实际结果</h5>
+                                <p>About信息验证通过，来源统一</p>
+                            </div>
+                        </div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>显示控制 - 显示检测</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 1</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 14.85s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">SCRIPT-OUTPUT</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">显示检测 - 执行输出</div>
+            
+                    <div class="test-section">
+                        <h4>📤 标准输出</h4>
+                        <div class="code-block stdout">=== Current Display Info ===
+PowerShell Output:
+COUNT:1
+DEVICE:\\.\DISPLAY1
+BOUNDS:0,0
+PRIMARY:True
+---
+
+
+=== Switching to external only ===
+
+=== Display Info after switch ===
+PowerShell Output:
+COUNT:1
+DEVICE:\\.\DISPLAY1
+BOUNDS:0,0
+PRIMARY:True
+---
+
+
+=== Switching back to internal only ===
+
+=== Display Info after switch back ===
+PowerShell Output:
+COUNT:1
+DEVICE:\\.\DISPLAY1
+BOUNDS:0,0
+PRIMARY:True
+---
+
+</div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>显示控制 - 显示控制</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 1</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 56.36s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item fail">
+                    <div class="test-header">
+                        <span class="test-id">SCRIPT-OUTPUT</span>
+                        <span class="test-status fail">失败</span>
+                    </div>
+                    <div class="test-name">显示控制 - 执行输出</div>
+            
+                    <div class="test-section">
+                        <h4>📤 标准输出</h4>
+                        <div class="code-block stdout">
+[1m[94m
+============================================================
+               USB Display Control
+                    ��Ʒ�����׼�
+============================================================
+[0m
+
+
+[1m[94m============================================================[0m
+[1m[94m���� 1: ��������������[0m
+[1m[94m============================================================[0m
+
+[93m[TEST][0m 1.1 - ��������������
+[PASS] 1.1 - ��������������
+[93m[TEST][0m 1.2 - �������˿ڼ���
+[FAIL] 1.2 - �������˿ڼ���
+       [91m�˿� 8765 δ����[0m
+
+[1m[94m============================================================[0m
+[1m[94m���� 2: ��ʾ��״̬���[0m
+[1m[94m============================================================[0m
+
+[93m[TEST][0m 2.1 - ʵʱ�����
+[FAIL] 2.1 - ʵʱ�����
+       [91mExpecting value: line 1 column 1 (char 0)[0m
+
+[1m[94m============================================================[0m
+[1m[94m���� 3: ��ʾ���л�����[0m
+[1m[94m============================================================[0m
+
+[INFO] ���浱ǰ��ʾ��ģʽ...
+[93m[TEST][0m 3.1 - �л�������һ�� (internal)
+[FAIL] 3.1 - �л�������һ��
+       [91m�л�����ʧ��[0m
+[93m[TEST][0m 3.2 - �л�����չģʽ (extend)
+[FAIL] 3.2 - �л�����չģʽ
+       [91m�л�����ʧ��[0m
+[93m[TEST][0m 3.3 - �л���Ӧʱ��
+[FAIL] 3.3 - �л���Ӧʱ��
+       [91m�л�ʧ��[0m
+
+[1m[94m============================================================[0m
+[1m[94m���� 4: Android ��ͨ��[0m
+[1m[94m============================================================[0m
+
+[93m[TEST][0m 4.1 - ADB �豸����
+[PASS] 4.1 - ADB �豸����
+       �豸������
+[93m[TEST][0m 4.2 - ADB reverse ����
+[PASS] 4.2 - ADB reverse ����
+       tcp:8765 ��ת��
+[93m[TEST][0m 4.3 - Android Ӧ�ð�װ
+[FAIL] 4.3 - Android Ӧ�ð�װ
+       [91mӦ��δ��װ[0m
+
+[1m[94m============================================================[0m
+[1m[94m���� 5: �������ͱ߽�����[0m
+[1m[94m============================================================[0m
+
+[93m[TEST][0m 5.1 - ��Ч�����
+[INFO] 5.1 - ��Ч�����: �쳣��Expecting value: line 1 column 1 (char 0)
+[93m[TEST][0m 5.2 - �Ƿ� HTTP ��������
+[PASS] 5.2 - �Ƿ� HTTP ��������
+       �����������˷� POST ����
+[93m[TEST][0m 5.3 - PowerShell �ű���ʱ����
+[PASS] 5.3 - PowerShell �ű���ʱ����
+       �ű��ڳ�ʱʱ�������
+
+[1m[94m============================================================[0m
+[1m[94m���� 6: ���ɲ���[0m
+[1m[94m============================================================[0m
+
+[93m[TEST][0m 6.1 - �����������̲���
+[INFO] ���� 1: ��ȡ��ʼ״̬
+[INFO] ���� 2: �л�����չģʽ
+[INFO] ���� 3: �л�������һ��
+[INFO] ���� 4: �ָ���ʼ״̬
+[PASS] 6.1 - �����������̲���
+       0/4 ����ͨ��
+
+[1m[94m============================================================[0m
+[1m[94m����ժҪ[0m
+[1m[94m============================================================[0m
+
+�ܲ����6
+[92mͨ����3[0m
+[91mʧ�ܣ�3[0m
+�ɹ��ʣ�50.0%
+�ܺ�ʱ��56.18��
+
+��ϸ���:
+  [FAIL] - ��������������
+  [FAIL] - ��ʾ��״̬���
+  [PASS] - ��ʾ���л�����
+  [FAIL] - Android ��ͨ��
+  [PASS] - ������
+  [PASS] - ���ɲ���
+
+</div>
+                    </div>
+                
+                    <div class="test-section">
+                        <h4>❌ 错误信息</h4>
+                        <div class="code-block stderr">'gbk' codec can't encode character '\ufffd' in position 131: illegal multibyte sequence</div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>网络测试 - ADB连接</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 1</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 0</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 3.20s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item pass">
+                    <div class="test-header">
+                        <span class="test-id">SCRIPT-OUTPUT</span>
+                        <span class="test-status pass">通过</span>
+                    </div>
+                    <div class="test-name">ADB连接 - 执行输出</div>
+            
+                    <div class="test-section">
+                        <h4>📤 标准输出</h4>
+                        <div class="code-block stdout">Script starting...
+Imported subprocess
+ADB path: C:\Program Files (x86)\Android\android-sdk\platform-tools\adb.exe
+Checking ADB version...
+ADB version check returned: 0
+Output: Android Debug Bridge version 1.0.41
+Version 34.0.5-10900879
+Installed as C:\Program Files (x86)\Andr
+Waiting for device...
+Wait result: 0
+Setting up reverse...
+Reverse result: 0
+Done!
+</div>
+                    </div>
+                </div></div>
+            <div class="category">
+                <div class="category-header">
+                    <h2>图像投射 - 图像API</h2>
+                    <div class="category-stats">
+                        <div class="stat-item">
+                            <span class="stat-badge pass">通过: 0</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-badge fail">失败: 1</span>
+                        </div>
+                        <div class="stat-item" style="color: #a0aec0;">
+                            耗时: 4.31s
+                        </div>
+                    </div>
+                </div>
+        
+                <div class="test-item fail">
+                    <div class="test-header">
+                        <span class="test-id">SCRIPT-OUTPUT</span>
+                        <span class="test-status fail">失败</span>
+                    </div>
+                    <div class="test-name">图像API - 执行输出</div>
+            
+                    <div class="test-section">
+                        <h4>📤 标准输出</h4>
+                        <div class="code-block stdout">============================================================
+  Testing Image Status API
+============================================================
+
+</div>
+                    </div>
+                
+                    <div class="test-section">
+                        <h4>⚠️ 错误输出</h4>
+                        <div class="code-block stderr">Traceback (most recent call last):
+  File "C:\VOLCANO\myws\controlhub_camera\test\imagecast\test_api.py", line 16, in <module>
+    conn.request("GET", "/image/status")
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1336, in request
+    self._send_request(method, url, body, headers, encode_chunked)
+    ~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1382, in _send_request
+    self.endheaders(body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1331, in endheaders
+    self._send_output(message_body, encode_chunked=encode_chunked)
+    ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1091, in _send_output
+    self.send(msg)
+    ~~~~~~~~~^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1035, in send
+    self.connect()
+    ~~~~~~~~~~~~^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\http\client.py", line 1001, in connect
+    self.sock = self._create_connection(
+                ~~~~~~~~~~~~~~~~~~~~~~~^
+        (self.host,self.port), self.timeout, self.source_address)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 864, in create_connection
+    raise exceptions[0]
+  File "C:\Users\volcano\AppData\Local\Programs\Python\Python313\Lib\socket.py", line 849, in create_connection
+    sock.connect(sa)
+    ~~~~~~~~~~~~^^^^
+ConnectionRefusedError: [WinError 10061] ����Ŀ�����������ܾ����޷����ӡ�
+</div>
+                    </div>
+                
+                    <div class="test-section">
+                        <h4>❌ 错误信息</h4>
+                        <div class="code-block stderr">'gbk' codec can't encode character '\ufffd' in position 1911: illegal multibyte sequence</div>
+                    </div>
+                </div></div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>报告生成时间:</strong> 2026-05-07 02:49:59</p>
+            <p><strong>测试执行时长:</strong> 79.97 秒</p>
+            <p style="margin-top: 15px; font-size: 0.9em; color: #a0aec0;">
+                ControlHub v1.5.0 - 自动化测试报告
+            </p>
+        </div>
+    </div>
+</body>
+</html>

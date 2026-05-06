@@ -11,9 +11,14 @@ import numpy as np
 import sys
 import os
 import argparse
+from pathlib import Path
 from typing import Optional, Generator, Tuple
 from PIL import Image, ImageDraw, ImageFont, ImageTk
 from PIL.ExifTags import TAGS
+
+# 导入统一网络管理模块
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.network_manager import get_network_manager
 
 
 class CameraClient:
@@ -21,13 +26,38 @@ class CameraClient:
     
     _stop_requested = False
     
-    def __init__(self, host: str = "localhost", port: int = 8766):
-        self.host = host
-        self.port = port
-        self.base_url = f"http://{host}:{port}"
+    def __init__(self, host: str = None, port: int = None, use_network_manager: bool = True):
+        """
+        初始化摄像头客户端
+        
+        Args:
+            host: 摄像头主机地址（如果use_network_manager为True，此参数可选）
+            port: 摄像头端口（如果use_network_manager为True，此参数可选）
+            use_network_manager: 是否使用统一网络管理器
+        """
+        if use_network_manager:
+            self._net_manager = get_network_manager()
+            self.host = self._net_manager.host if host is None else host
+            self.port = self._net_manager.port if port is None else port
+        else:
+            self._net_manager = None
+            self.host = host or "localhost"
+            self.port = port or 8766
+        
+        self.base_url = f"http://{self.host}:{self.port}"
         self.stream_url = f"{self.base_url}/camera/stream"
         self.timeout = 5
         self.user_rotation = 0
+    
+    def update_from_network_manager(self):
+        """从网络管理器更新配置"""
+        if self._net_manager:
+            self.host = self._net_manager.host
+            self.port = self._net_manager.port
+            self.base_url = f"http://{self.host}:{self.port}"
+            self.stream_url = f"{self.base_url}/camera/stream"
+            return True
+        return False
     
     @classmethod
     def request_stop(cls):
@@ -184,83 +214,16 @@ class CameraClient:
             print(f"[ERROR] Failed to get snapshot: {e}")
         return None
     
-    def _find_adb_path(self):
-        """查找ADB路径"""
-        adb_path = os.environ.get("ADB_PATH", "adb")
-        common_paths = [
-            os.path.expanduser("~\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"),
-            "C:\\Users\\volcano\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe",
-        ]
-        for path in common_paths:
-            if os.path.exists(path):
-                return path
-        return adb_path
-    
-    def _adb_reconnect(self):
-        """尝试ADB重连"""
-        import subprocess
-        import time
-        
-        adb_path = self._find_adb_path()
-        
-        try:
-            print("[INFO] Attempting ADB reconnect...")
-            result = subprocess.run([adb_path, "reconnect"], capture_output=True, text=True, timeout=10,
-                          creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-            if result.returncode == 0:
-                print(f"[INFO] ADB reconnect: {result.stdout.strip()}")
-            time.sleep(2)
-            
-            result = subprocess.run([adb_path, "devices"], capture_output=True, text=True, timeout=5,
-                          creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-            print(f"[INFO] ADB devices: {result.stdout.strip()}")
-            
-            print("[INFO] Setting up port forward...")
-            subprocess.run([adb_path, "forward", f"tcp:{self.port}", f"tcp:{self.port}"],
-                          capture_output=True, timeout=5,
-                          creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-            print("[INFO] ADB reconnect completed")
-        except Exception as e:
-            print(f"[ERROR] ADB reconnect failed: {e}")
-    
     def _check_adb_and_reconnect(self):
-        """检查ADB设备状态，如果offline则尝试重连"""
-        import subprocess
-        adb_path = os.environ.get("ADB_PATH", "adb")
-        common_paths = [
-            os.path.expanduser("~\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"),
-            "C:\\Users\\volcano\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe",
-        ]
-        for path in common_paths:
-            if os.path.exists(path):
-                adb_path = path
-                break
-        
-        try:
-            result = subprocess.run([adb_path, "devices"], capture_output=True, text=True, timeout=5,
-                                   creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0)
-            lines = result.stdout.strip().split('\n')
-            has_offline = False
-            has_device = False
-            
-            for line in lines[1:]:
-                if line.strip() and 'List' not in line:
-                    parts = line.split('\t')
-                    if len(parts) >= 2:
-                        status = parts[1].strip()
-                        if status == 'device':
-                            has_device = True
-                        elif status == 'offline':
-                            has_offline = True
-            
-            if has_offline or not has_device:
-                print(f"[WARN] ADB device offline or not found, attempting reconnect...")
-                self._adb_reconnect()
-            else:
-                print("[INFO] ADB device connected")
-                
-        except Exception as e:
-            print(f"[WARN] Failed to check ADB status: {e}")
+        """检查ADB设备状态，如果offline则尝试重连（使用NetworkManager）"""
+        if self._net_manager:
+            if self._net_manager.channel in ["usb", "auto"]:
+                if not self._net_manager.check_usb_devices():
+                    print(f"[WARN] USB device not connected, attempting reconnect...")
+                else:
+                    print("[INFO] ADB device connected")
+        else:
+            print("[WARN] NetworkManager not available, skipping ADB check")
     
     def get_stream(self, max_retries: int = 3) -> Generator[bytes, None, None]:
         """获取MJPEG视频流"""
@@ -342,13 +305,11 @@ class CameraClient:
                         print("[INFO] Response ended prematurely, closing preview...")
                         self._stop_requested = True
                         cv2.destroyAllWindows()
-                        self._adb_reconnect()
+                        self._reconnect_camera()
                         print("[INFO] Preview closed, please reopen manually")
                         return
-                    elif "connection" in error_str.lower():
-                        self._reconnect_camera()
                     else:
-                        self._adb_reconnect()
+                        self._reconnect_camera()
                     adb_reconnect_done = True
                     retry_count = 0
                 if total_retries < max_total_retries:
@@ -359,10 +320,14 @@ class CameraClient:
         print(f"[ERROR] Max retries ({max_total_retries}) reached, stopping")
     
     def _reconnect_camera(self):
-        """重连摄像头（只做ADB重连，不调用手机端API）"""
+        """重连摄像头（使用NetworkManager）"""
         import time
         print("[INFO] Reconnecting camera...")
-        self._adb_reconnect()
+        if self._net_manager:
+            if self._net_manager.channel in ["usb", "auto"]:
+                self._net_manager.check_usb_devices()
+                self._net_manager.set_channel(self._net_manager.channel)
+            self.update_from_network_manager()
         time.sleep(1)
         print("[INFO] Reconnect done, retrying stream...")
                     
