@@ -82,6 +82,62 @@
 - **第一屏 ☑** - 笔记本内置显示器开关
 - **第二屏 ☑** - 外接显示器开关
 
+## 构建方法
+
+### 前置要求
+
+- Android SDK（含 Build Tools 33.0.0）
+- JDK 17（推荐使用 Android Studio 自带的 JBR）
+- Python 3.8+（PC 服务器端）
+
+### 构建 APK
+
+**Windows（PowerShell）**：
+
+```powershell
+# 设置 JAVA_HOME（使用 Android Studio 自带的 JBR）
+$env:JAVA_HOME = "C:\Program Files\Android\Android Studio\jbr"
+
+# 构建 Debug APK
+.\gradlew.bat assembleDebug
+
+# 构建 Release APK
+.\gradlew.bat assembleRelease
+```
+
+构建产物位于：
+- Debug: `app\build\outputs\apk\debug\app-debug.apk`
+- Release: `app\build\outputs\apk\release\app-release.apk`
+
+**Linux/macOS**：
+
+```bash
+export JAVA_HOME=/path/to/jdk
+./gradlew assembleDebug
+```
+
+### 安装 APK 到设备
+
+```bash
+adb install app/build/outputs/apk/debug/app-debug.apk
+```
+
+### 运行测试
+
+```bash
+# 运行完整测试套件并生成报告
+python test/run_detailed_tests.py
+
+# 运行集成测试
+python test/integration/run_tests.py --all
+```
+
+### 一键发布
+
+```bash
+python release/publish.py
+```
+
 ## 安装说明
 
 ### 1. PC 端（Windows）

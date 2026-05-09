@@ -75,7 +75,7 @@ public class ImageDisplayActivity extends Activity {
         
         initViews();
         
-        controller = new ImageCastingController();
+        controller = new ImageCastingController(this);
         executorService = Executors.newSingleThreadExecutor();
         mainHandler = new Handler(Looper.getMainLooper());
         pollHandler = new Handler(Looper.getMainLooper());
